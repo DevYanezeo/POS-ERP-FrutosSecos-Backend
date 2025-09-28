@@ -16,7 +16,6 @@ INSERT INTO categorias (nombre, IdCategoria) VALUES
                                     ('TE INFUSIONES', 7),
                                     ('SUPERALIMENTOS BROTA', 8);
 
-
 -- ==============================================
 -- TABLA: PRODUCTOS
 -- ==============================================

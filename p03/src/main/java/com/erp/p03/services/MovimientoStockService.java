@@ -13,4 +13,6 @@ public class MovimientoStockService {
         this.movimientoStockRepository = movimientoStockRepository;
     }
 
+
+
 }

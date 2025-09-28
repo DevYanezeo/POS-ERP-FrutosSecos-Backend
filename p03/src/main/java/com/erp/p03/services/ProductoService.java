@@ -48,4 +48,28 @@ public class ProductoService {
     public List<ProductoEntity> findByNombreContaining(String nombre) {
         return productoRepository.findByNombreContainingIgnoreCase(nombre);
     }
+
+    // Agrega stock al producto con el id dado y retorna el producto actualizado
+    public ProductoEntity agregarStock(int productoId, int cantidad) {
+        // Busca el producto por id, lanza error tipo Excepción si no existe
+        ProductoEntity producto = productoRepository.findById(productoId)
+                .orElseThrow(() -> new RuntimeException("Producto no encontrado"));
+        producto.setStock(producto.getStock() + cantidad);
+        return productoRepository.save(producto);
+    }
+
+    // Quita stock al producto con el id dado y retorna el producto actualizado
+    public ProductoEntity quitarStock(int productoId, int cantidad) {
+        // Busca el producto por id, lanza error tipo Excepción si no existe
+        ProductoEntity producto = productoRepository.findById(productoId)
+                .orElseThrow(() -> new RuntimeException("Producto no encontrado"));
+        int nuevaCantidad = producto.getStock() - cantidad;
+        // Si el stock resultante es negativo, lanza excepción
+        if (nuevaCantidad < 0) {
+            throw new RuntimeException("Stock insuficiente");
+        }
+        producto.setStock(nuevaCantidad);
+        return productoRepository.save(producto);
+    }
+
 }

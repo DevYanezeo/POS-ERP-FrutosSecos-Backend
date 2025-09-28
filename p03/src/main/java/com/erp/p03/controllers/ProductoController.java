@@ -95,4 +95,24 @@ public class ProductoController {
         List<ProductoEntity> productos = productoService.findByNombreContaining(nombre);
         return ResponseEntity.ok(productos);
     }
+
+    @PutMapping("/{id}/agregar-stock")
+    public ResponseEntity<ProductoEntity> agregarStock(@PathVariable Integer id, @RequestParam int cantidad) {
+        try {
+            ProductoEntity productoActualizado = productoService.agregarStock(id, cantidad);
+            return ResponseEntity.ok(productoActualizado);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    @PutMapping("/{id}/quitar-stock")
+    public ResponseEntity<ProductoEntity> quitarStock(@PathVariable Integer id, @RequestParam int cantidad) {
+        try {
+            ProductoEntity productoActualizado = productoService.quitarStock(id, cantidad);
+            return ResponseEntity.ok(productoActualizado);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
 }
