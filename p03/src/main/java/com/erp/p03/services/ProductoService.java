@@ -72,4 +72,12 @@ public class ProductoService {
         return productoRepository.save(producto);
     }
 
+    // Devuelve la lista de productos cuyo stock es menor o igual a 5
+    public List<ProductoEntity> findProductosStockBajo() {
+        // Busca productos con stock <= 5
+        return productoRepository.findAll().stream()
+                .filter(producto -> producto.getStock() <= 5)
+                .toList();
+    }
+
 }

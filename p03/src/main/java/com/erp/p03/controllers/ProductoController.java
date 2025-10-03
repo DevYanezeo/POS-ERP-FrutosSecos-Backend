@@ -115,4 +115,11 @@ public class ProductoController {
             return ResponseEntity.badRequest().build();
         }
     }
+
+    // Endpoint para obtener productos con stock bajo (<= 5)
+    @GetMapping("/stock-bajo")
+    public ResponseEntity<List<ProductoEntity>> getProductosStockBajo() {
+        List<ProductoEntity> productosStockBajo = productoService.findProductosStockBajo();
+        return ResponseEntity.ok(productosStockBajo);
+    }
 }
