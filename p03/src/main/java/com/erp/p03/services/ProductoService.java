@@ -81,8 +81,9 @@ public class ProductoService {
     public List<ProductoEntity> findProductosStockBajo() {
         // Busca productos con stock <= 5
         return productoRepository.findAll().stream()
-                .filter(producto -> producto.getStock() <= 5)
-                .toList();
+                .filter(producto -> producto.getStock() != null && producto.getStock() <= 5)
+                .toList(); // PROBLEMA: cuando se edita un producto por front por alguna
+        // razon algunos de los campos se cambia nulo !!!
     }
 
     // Devuelve la lista de productos con el nombre de la categoría a la que pertenece
@@ -103,14 +104,17 @@ public class ProductoService {
             dto.setFechaVencimiento(producto.getFechaVencimiento());
             dto.setCodigo(producto.getCodigo());
             dto.setCategoriaId(producto.getCategoriaId());
-            // Busca la categoría correspondiente
-            categorias.stream()
-                .filter(categoria -> categoria.getIdCategoria() == producto.getCategoriaId())
-                .findFirst()
-                .ifPresent(categoria -> dto.setNombreCategoria(categoria.getNombre()));
+            // Validar que categoriaId no sea null antes de buscar
+            if (producto.getCategoriaId() != null) {
+                categorias.stream()
+                        .filter(categoria -> categoria.getIdCategoria() == producto.getCategoriaId())
+                        .findFirst()
+                        .ifPresent(categoria -> dto.setNombreCategoria(categoria.getNombre()));
+            } else {
+                dto.setNombreCategoria(null);
+            }
             return dto;
         }).toList();
-
     }
 
 
