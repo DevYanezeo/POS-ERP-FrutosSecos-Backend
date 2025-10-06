@@ -2,6 +2,7 @@ package com.erp.p03.controllers;
 
 import java.util.List;
 
+import com.erp.p03.controllers.dto.ProductoConCategoriaDTO;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -31,6 +32,11 @@ public class ProductoController {
     @GetMapping("/all")
     public ResponseEntity<List<ProductoEntity>> findAll() {
         List<ProductoEntity> productos = productoService.findAll();
+        return ResponseEntity.ok(productos);
+    }
+    @GetMapping("/all-con-categoria")
+    public ResponseEntity<List<ProductoConCategoriaDTO>> findAllConCategoria() {
+        List<ProductoConCategoriaDTO> productos = productoService.obtenerProductosConCategoria();
         return ResponseEntity.ok(productos);
     }
 

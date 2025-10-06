@@ -3,6 +3,9 @@ package com.erp.p03.services;
 import java.util.List;
 import java.util.Optional;
 
+import com.erp.p03.controllers.dto.ProductoConCategoriaDTO;
+import com.erp.p03.entities.CategoriaEntity;
+import com.erp.p03.repositories.CategoriaRepository;
 import org.springframework.stereotype.Service;
 
 import com.erp.p03.entities.ProductoEntity;
@@ -12,9 +15,11 @@ import com.erp.p03.repositories.ProductoRepository;
 public class ProductoService {
 
     private final ProductoRepository productoRepository;
-    
-    public ProductoService(ProductoRepository productoRepository) {
+    private final CategoriaRepository categoriaRepository;
+
+    public ProductoService(ProductoRepository productoRepository, CategoriaRepository categoriaRepository) {
         this.productoRepository = productoRepository;
+        this.categoriaRepository = categoriaRepository;
     }
 
     public List<ProductoEntity> findAll() {
@@ -79,5 +84,34 @@ public class ProductoService {
                 .filter(producto -> producto.getStock() <= 5)
                 .toList();
     }
+
+    // Devuelve la lista de productos con el nombre de la categoría a la que pertenece
+// En ProductoService.java
+    public List<ProductoConCategoriaDTO> obtenerProductosConCategoria() {
+        List<ProductoEntity> productos = productoRepository.findAll();
+        List<CategoriaEntity> categorias = categoriaRepository.findAll();
+        return productos.stream().map(producto -> {
+            ProductoConCategoriaDTO dto = new ProductoConCategoriaDTO();
+            dto.setIdProducto(producto.getIdProducto());
+            dto.setNombre(producto.getNombre());
+            dto.setDescripcion(producto.getDescripcion());
+            dto.setImagen(producto.getImagen());
+            dto.setPrecio(producto.getPrecio());
+            dto.setStock(producto.getStock());
+            dto.setUnidad(producto.getUnidad());
+            dto.setEstado(producto.getEstado());
+            dto.setFechaVencimiento(producto.getFechaVencimiento());
+            dto.setCodigo(producto.getCodigo());
+            dto.setCategoriaId(producto.getCategoriaId());
+            // Busca la categoría correspondiente
+            categorias.stream()
+                .filter(categoria -> categoria.getIdCategoria() == producto.getCategoriaId())
+                .findFirst()
+                .ifPresent(categoria -> dto.setNombreCategoria(categoria.getNombre()));
+            return dto;
+        }).toList();
+
+    }
+
 
 }
