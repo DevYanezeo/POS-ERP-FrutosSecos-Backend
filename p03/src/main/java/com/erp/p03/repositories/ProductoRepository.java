@@ -3,6 +3,7 @@ package com.erp.p03.repositories;
 import java.util.List;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import com.erp.p03.entities.ProductoEntity;
@@ -15,4 +16,7 @@ public interface ProductoRepository extends JpaRepository<ProductoEntity, Intege
     List<ProductoEntity> findByNombreContainingIgnoreCase(String nombre);
     List<ProductoEntity> findByEstadoAndCategoriaId(Boolean estado, Integer categoriaId);
     List<ProductoEntity> findByPesoBetween(int min, int max);
+
+    @Query("SELECT DISTINCT p FROM ProductoEntity p LEFT JOIN FETCH p.lotes l")
+    List<ProductoEntity> findAllWithLotes();
 }
