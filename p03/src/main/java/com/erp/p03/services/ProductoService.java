@@ -164,6 +164,20 @@ public class ProductoService {
         }).toList();
     }
 
+    //ORDENAR PRODUCTOS
+    //Nombre A a la Z
+    public List<ProductoEntity> findAllOrderByNombreAsc() {
+        return productoRepository.findAllByOrderByNombreAsc();
+    }
+    //Peso descendente, mayor a menor
+    public List<ProductoEntity> findAllOrderByPesoDesc() {
+        return productoRepository.findAllByOrderByPesoDesc();
+    }
+    //Stock descendente, mayor a menor
+    public List<ProductoEntity> findAllOrderByStockDesc() {
+        return productoRepository.findAllByOrderByStockDesc();
+    }
+
 
     public List<ProductoEntity> findByPesoBetween(int min, int max) {
         return productoRepository.findByPesoBetween(min, max);
