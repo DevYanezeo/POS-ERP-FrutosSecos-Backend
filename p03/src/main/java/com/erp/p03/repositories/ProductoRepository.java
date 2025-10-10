@@ -14,4 +14,7 @@ public interface ProductoRepository extends JpaRepository<ProductoEntity, Intege
     List<ProductoEntity> findByCategoriaId(Integer categoriaId);
     List<ProductoEntity> findByNombreContainingIgnoreCase(String nombre);
     List<ProductoEntity> findByEstadoAndCategoriaId(Boolean estado, Integer categoriaId);
+    List<ProductoEntity> findAllByOrderByNombreAsc();
+    List<ProductoEntity> findAllByOrderByPesoDesc();
+    List<ProductoEntity> findAllByOrderByStockDesc();
 }

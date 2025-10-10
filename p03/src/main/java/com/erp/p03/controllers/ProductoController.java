@@ -128,4 +128,25 @@ public class ProductoController {
         List<ProductoEntity> productosStockBajo = productoService.findProductosStockBajo();
         return ResponseEntity.ok(productosStockBajo);
     }
+
+    // Ordenar productos de A a Z
+    @GetMapping("/orden/nombre")
+    public ResponseEntity<List<ProductoEntity>> ordenarPorNombreAZ() {
+        List<ProductoEntity> productos = productoService.findAllOrderByNombreAsc();
+        return ResponseEntity.ok(productos);
+    }
+
+    // Ordenar productos por peso descendente
+    @GetMapping("/orden/peso-desc")
+    public ResponseEntity<List<ProductoEntity>> ordenarPorPesoDesc() {
+        List<ProductoEntity> productos = productoService.findAllOrderByPesoDesc();
+        return ResponseEntity.ok(productos);
+    }
+
+    // Ordenar productos por stock descendente
+    @GetMapping("/orden/stock-desc")
+    public ResponseEntity<List<ProductoEntity>> ordenarPorStockDesc() {
+        List<ProductoEntity> productos = productoService.findAllOrderByStockDesc();
+        return ResponseEntity.ok(productos);
+    }
 }
