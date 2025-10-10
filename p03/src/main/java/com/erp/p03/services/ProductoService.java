@@ -79,7 +79,7 @@ public class ProductoService {
 
     // Devuelve la lista de productos cuyo stock es menor o igual a 5
     public List<ProductoEntity> findProductosStockBajo() {
-        // Busca productos con stock <= 5
+        // Busca productos with stock <= 5
         return productoRepository.findAll().stream()
                 .filter(producto -> producto.getStock() != null && producto.getStock() <= 5)
                 .toList(); // PROBLEMA: cuando se edita un producto por front por alguna
@@ -115,6 +115,11 @@ public class ProductoService {
             }
             return dto;
         }).toList();
+    }
+
+
+    public List<ProductoEntity> findByPesoBetween(int min, int max) {
+        return productoRepository.findByPesoBetween(min, max);
     }
 
 

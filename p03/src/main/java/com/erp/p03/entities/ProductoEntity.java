@@ -34,4 +34,5 @@ public class ProductoEntity {
     private String codigo;
     @Column(name = "categoria_id")
     private Integer categoriaId;
+    private Integer peso; // peso en gramos
 }
