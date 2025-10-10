@@ -94,6 +94,7 @@ public class ProductoService {
 
     // Devuelve la lista de productos cuyo stock es menor o igual a 5
     public List<ProductoEntity> findProductosStockBajo() {
+        // Busca productos with stock <= 5
         return productoRepository.findAll().stream()
                 .filter(producto -> {
                     int stock = Optional.ofNullable(producto.getStock()).orElse(stockDesdeLotes(producto));
@@ -162,5 +163,11 @@ public class ProductoService {
             return dto;
         }).toList();
     }
+
+
+    public List<ProductoEntity> findByPesoBetween(int min, int max) {
+        return productoRepository.findByPesoBetween(min, max);
+    }
+
 
 }

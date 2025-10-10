@@ -128,4 +128,15 @@ public class ProductoController {
         List<ProductoEntity> productosStockBajo = productoService.findProductosStockBajo();
         return ResponseEntity.ok(productosStockBajo);
     }
+
+    // Filtrar productos por peso entre min y max de gramos, ingresados desde la vista
+    @GetMapping("/peso")
+    public ResponseEntity<List<ProductoEntity>> findByPesoBetween(@RequestParam int min, @RequestParam int max) {
+        if (min >= max) {
+            // Validación: no permitir mínimo mayor o igual al máximo
+            return ResponseEntity.badRequest().body(null);
+        }
+        List<ProductoEntity> productos = productoService.findByPesoBetween(min, max);
+        return ResponseEntity.ok(productos);
+    }
 }
