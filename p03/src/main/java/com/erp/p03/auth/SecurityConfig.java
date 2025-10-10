@@ -7,6 +7,7 @@ import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -37,18 +38,25 @@ public class SecurityConfig {
     http
         .csrf(AbstractHttpConfigurer::disable)
         .cors().and()
-                .authorizeHttpRequests(req ->
-                        req.requestMatchers("/api/auth/**")
-                                .permitAll()
-                                .requestMatchers("/api/usuarios/**").hasAnyRole("ADMIN")
-                                .requestMatchers("/api/productos/**").hasAnyRole("ADMIN", "VENDEDOR")
-                                .requestMatchers("/api/categorias/**").hasAnyRole("ADMIN", "VENDEDOR")
-                                .requestMatchers("/api/ventas/**").hasAnyRole("ADMIN", "VENDEDOR", "CAJERO")
-                                .requestMatchers("/api/detalle-ventas/**").hasAnyRole("ADMIN", "VENDEDOR", "CAJERO")
-                                .requestMatchers("/api/movimientos-stock/**").hasAnyRole("ADMIN", "VENDEDOR")
-                                .anyRequest()
-                                .authenticated()
-                )
+        .authorizeHttpRequests(req ->
+            req.requestMatchers("/api/auth/**").permitAll()
+                .requestMatchers("/api/usuarios/**").hasAnyRole("ADMIN")
+
+                .requestMatchers(HttpMethod.GET, "/api/productos/**").hasAnyRole("ADMIN", "VENDEDOR", "CAJERO")
+                .requestMatchers(HttpMethod.POST, "/api/productos/**").hasAnyRole("ADMIN")
+                .requestMatchers(HttpMethod.DELETE, "/api/productos/**").hasAnyRole("ADMIN")
+                .requestMatchers(HttpMethod.PUT, "/api/productos/*/agregar-stock", "/api/productos/*/quitar-stock").hasAnyRole("ADMIN", "VENDEDOR", "CAJERO")
+                .requestMatchers(HttpMethod.PUT, "/api/productos/**").hasAnyRole("ADMIN")
+
+                .requestMatchers("/api/categorias/**").hasAnyRole("ADMIN", "VENDEDOR")
+
+                .requestMatchers("/api/ventas/**").hasAnyRole("ADMIN", "VENDEDOR", "CAJERO")
+                .requestMatchers("/api/detalle-ventas/**").hasAnyRole("ADMIN", "VENDEDOR", "CAJERO")
+
+                .requestMatchers("/api/movimientos-stock/**").hasAnyRole("ADMIN", "VENDEDOR")
+
+                .anyRequest().authenticated()
+        )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authenticationProvider(authenticationProvider())
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
