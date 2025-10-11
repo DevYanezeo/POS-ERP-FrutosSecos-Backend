@@ -21,7 +21,7 @@ public class LoteEntity {
     private Integer idLote;
     @ManyToOne(fetch = FetchType.LAZY) // relacion uno a muchos
     @JoinColumn(name = "producto_id", nullable = false)
-    @JsonIgnoreProperties({"lotes"})
+    @JsonIgnoreProperties({"lotes", "hibernateLazyInitializer", "handler"})
     private ProductoEntity producto;
 
     @Column(name = "cantidad")
