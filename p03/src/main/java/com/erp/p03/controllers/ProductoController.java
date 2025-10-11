@@ -1,8 +1,12 @@
 package com.erp.p03.controllers;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import com.erp.p03.controllers.dto.ProductoConCategoriaDTO;
+import com.erp.p03.services.FileStorageService;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -14,6 +18,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.erp.p03.entities.ProductoEntity;
 import com.erp.p03.services.ProductoService;
@@ -24,9 +29,11 @@ import com.erp.p03.services.ProductoService;
 public class ProductoController {
 
     private final ProductoService productoService;
+    private final FileStorageService fileStorageService;
 
-    public ProductoController(ProductoService productoService) {
+    public ProductoController(ProductoService productoService, FileStorageService fileStorageService) {
         this.productoService = productoService;
+        this.fileStorageService = fileStorageService;
     }
 
     @GetMapping("/all")
@@ -165,5 +172,60 @@ public class ProductoController {
         }
         List<ProductoEntity> productos = productoService.findByPesoBetween(min, max);
         return ResponseEntity.ok(productos);
+    }
+
+    @PostMapping("/upload-image")
+    public ResponseEntity<?> uploadImage(@RequestParam("file") MultipartFile file) {
+        try {
+            String nombreArchivo = fileStorageService.guardarImagen(file);
+            
+            String imageUrl = "/uploads/productos/" + nombreArchivo;
+            
+            Map<String, String> response = new HashMap<>();
+            response.put("fileName", nombreArchivo);
+            response.put("imageUrl", imageUrl);
+            response.put("message", "Imagen subida exitosamente");
+            
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+    }
+
+    @PutMapping("/{id}/imagen")
+    public ResponseEntity<?> updateProductoImagen(
+            @PathVariable Integer id,
+            @RequestParam("file") MultipartFile file) {
+        try {
+            ProductoEntity producto = productoService.findById(id)
+                    .orElseThrow(() -> new RuntimeException("Producto no encontrado"));
+            
+            if (producto.getImagen() != null && !producto.getImagen().isEmpty()) {
+                try {
+                    String oldFileName = producto.getImagen().substring(producto.getImagen().lastIndexOf("/") + 1);
+                    fileStorageService.eliminarImagen(oldFileName);
+                } catch (Exception e) {
+                    System.err.println("No se pudo eliminar la imagen anterior: " + e.getMessage());
+                }
+            }
+            
+            String nombreArchivo = fileStorageService.guardarImagen(file);
+            String imageUrl = "/uploads/productos/" + nombreArchivo;
+            
+            producto.setImagen(imageUrl);
+            ProductoEntity updatedProducto = productoService.save(producto);
+            
+            return ResponseEntity.ok(updatedProducto);
+        } catch (RuntimeException e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", e.getMessage());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+        } catch (Exception e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
     }
 }
