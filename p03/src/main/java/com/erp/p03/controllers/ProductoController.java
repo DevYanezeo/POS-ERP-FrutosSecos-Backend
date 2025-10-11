@@ -102,20 +102,27 @@ public class ProductoController {
         return ResponseEntity.ok(productos);
     }
 
-    @PutMapping("/{id}/agregar-stock")
-    public ResponseEntity<ProductoEntity> agregarStock(@PathVariable Integer id, @RequestParam int cantidad) {
+    // Endpoint para agregar stock de un lote específico de un producto
+    @PutMapping("/{productoId}/lotes/{loteId}/agregar-stock")
+    public ResponseEntity<ProductoEntity> agregarStock(
+            @PathVariable("productoId") Integer productoId,
+            @PathVariable("loteId") Integer loteId,
+            @RequestParam int cantidad) {
         try {
-            ProductoEntity productoActualizado = productoService.agregarStock(id, cantidad);
+            ProductoEntity productoActualizado = productoService.agregarStock(productoId, loteId, cantidad);
             return ResponseEntity.ok(productoActualizado);
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().build();
         }
     }
-
-    @PutMapping("/{id}/quitar-stock")
-    public ResponseEntity<ProductoEntity> quitarStock(@PathVariable Integer id, @RequestParam int cantidad) {
+    // Endpoint para quitar stock de un lote específico de un producto
+    @PutMapping("/{productoId}/lotes/{loteId}/quitar-stock")
+    public ResponseEntity<ProductoEntity> quitarStock(
+            @PathVariable("productoId") Integer productoId,
+            @PathVariable("loteId") Integer loteId,
+            @RequestParam int cantidad) {
         try {
-            ProductoEntity productoActualizado = productoService.quitarStock(id, cantidad);
+            ProductoEntity productoActualizado = productoService.quitarStock(productoId, loteId, cantidad);
             return ResponseEntity.ok(productoActualizado);
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().build();

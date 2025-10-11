@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 
 import com.erp.p03.entities.ProductoEntity;
 import com.erp.p03.repositories.ProductoRepository;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class ProductoService {
@@ -60,7 +61,7 @@ public class ProductoService {
         return productoRepository.findByNombreContainingIgnoreCase(nombre);
     }
 
-    // Helper: calcula el stock total a partir de los lotes activos
+    // Calcula el stock total a partir de los lotes activos
     private int stockDesdeLotes(ProductoEntity producto) {
         if (producto == null || producto.getLotes() == null) return 0;
         return producto.getLotes().stream()
@@ -71,24 +72,65 @@ public class ProductoService {
     }
 
     // Agrega stock al producto con el id dado y retorna el producto actualizado
-    public ProductoEntity agregarStock(int productoId, int cantidad) {
+
+
+    @Transactional
+    public ProductoEntity agregarStock(int productoId, int loteId, int cantidad) {
         ProductoEntity producto = productoRepository.findById(productoId)
                 .orElseThrow(() -> new RuntimeException("Producto no encontrado"));
-        int actual = Optional.ofNullable(producto.getStock()).orElse(stockDesdeLotes(producto));
-        producto.setStock(actual + cantidad);
+
+        List<LoteEntity> lotes = Optional.ofNullable(producto.getLotes())
+                .orElseThrow(() -> new RuntimeException("Producto no tiene lotes"));
+        // Buscar lote que se va a actualizar
+        boolean encontrado = false;
+        for (LoteEntity l : lotes) {
+            if (Objects.equals(l.getIdLote(), loteId)) {
+                int cantidadActual = Optional.ofNullable(l.getCantidad()).orElse(0);
+                l.setCantidad(cantidadActual + cantidad);
+                encontrado = true;
+                break;
+            }
+        }
+
+        if (!encontrado) {
+            throw new RuntimeException("Lote no encontrado");
+        }
+        // Actualizar el stock total del prodducto
+        producto.setLotes(lotes);
+        int totalStock = stockDesdeLotes(producto);
+        producto.setStock(totalStock);
+
         return productoRepository.save(producto);
     }
 
+
     // Quita stock al producto con el id dado y retorna el producto actualizado
-    public ProductoEntity quitarStock(int productoId, int cantidad) {
+    @Transactional
+    public ProductoEntity quitarStock(int productoId, int loteId, int cantidad) {
         ProductoEntity producto = productoRepository.findById(productoId)
                 .orElseThrow(() -> new RuntimeException("Producto no encontrado"));
-        int actual = Optional.ofNullable(producto.getStock()).orElse(stockDesdeLotes(producto));
-        int nuevaCantidad = actual - cantidad;
-        if (nuevaCantidad < 0) {
-            throw new RuntimeException("Stock insuficiente");
+
+        List<LoteEntity> lotes = Optional.ofNullable(producto.getLotes())
+                .orElseThrow(() -> new RuntimeException("Producto no tiene lotes"));
+        // Buscar lote que se va a actualizar
+        boolean encontrado = false;
+        for (LoteEntity l : lotes) {
+            if (Objects.equals(l.getIdLote(), loteId)) {
+                int cantidadActual = Optional.ofNullable(l.getCantidad()).orElse(0);
+                l.setCantidad(cantidadActual - cantidad);
+                encontrado = true;
+                break;
+            }
         }
-        producto.setStock(nuevaCantidad);
+
+        if (!encontrado) {
+            throw new RuntimeException("Lote no encontrado");
+        }
+        // Actualizar el stock total del prodducto
+        producto.setLotes(lotes);
+        int totalStock = stockDesdeLotes(producto);
+        producto.setStock(totalStock);
+
         return productoRepository.save(producto);
     }
 
