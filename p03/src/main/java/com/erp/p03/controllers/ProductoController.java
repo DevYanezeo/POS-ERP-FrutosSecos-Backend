@@ -1,27 +1,18 @@
 package com.erp.p03.controllers;
 
+import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import com.erp.p03.controllers.dto.ProductoConCategoriaDTO;
+import com.erp.p03.entities.ProductoEntity;
 import com.erp.p03.services.FileStorageService;
+import com.erp.p03.services.ProductoService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-
-import com.erp.p03.entities.ProductoEntity;
-import com.erp.p03.services.ProductoService;
 
 @RestController
 @RequestMapping("api/productos")
@@ -36,11 +27,14 @@ public class ProductoController {
         this.fileStorageService = fileStorageService;
     }
 
+    // ====================== CRUD BÁSICO ======================
+
     @GetMapping("/all")
     public ResponseEntity<List<ProductoEntity>> findAll() {
         List<ProductoEntity> productos = productoService.findAll();
         return ResponseEntity.ok(productos);
     }
+
     @GetMapping("/all-con-categoria")
     public ResponseEntity<List<ProductoConCategoriaDTO>> findAllConCategoria() {
         List<ProductoConCategoriaDTO> productos = productoService.obtenerProductosConCategoria();
@@ -91,6 +85,8 @@ public class ProductoController {
         }
     }
 
+    // ====================== FILTROS ======================
+
     @GetMapping("/activos")
     public ResponseEntity<List<ProductoEntity>> findActivos() {
         List<ProductoEntity> productos = productoService.findByEstado(true);
@@ -109,7 +105,39 @@ public class ProductoController {
         return ResponseEntity.ok(productos);
     }
 
-    // Endpoint para agregar stock de un lote específico de un producto
+    // Filtrar productos por peso entre min y max (gramos)
+    @GetMapping("/peso")
+    public ResponseEntity<List<ProductoEntity>> findByPesoBetween(
+            @RequestParam int min, @RequestParam int max) {
+        if (min >= max) {
+            return ResponseEntity.badRequest().body(null);
+        }
+        List<ProductoEntity> productos = productoService.findByPesoBetween(min, max);
+        return ResponseEntity.ok(productos);
+    }
+
+    // 🔹 Filtrar productos por rango de precios (CLP)
+    @GetMapping("/precio")
+    public ResponseEntity<List<ProductoEntity>> findByPrecioBetween(
+            @RequestParam BigDecimal min,
+            @RequestParam BigDecimal max) {
+        if (min.compareTo(max) >= 0) {
+            return ResponseEntity.badRequest().body(null);
+        }
+        List<ProductoEntity> productos = productoService.findByPrecioBetween(min, max);
+        return ResponseEntity.ok(productos);
+    }
+
+    // ====================== STOCK ======================
+
+    // Productos con stock bajo (<= 5)
+    @GetMapping("/stock-bajo")
+    public ResponseEntity<List<ProductoEntity>> getProductosStockBajo() {
+        List<ProductoEntity> productosStockBajo = productoService.findProductosStockBajo();
+        return ResponseEntity.ok(productosStockBajo);
+    }
+
+    // Agregar stock a un lote
     @PutMapping("/{productoId}/lotes/{loteId}/agregar-stock")
     public ResponseEntity<ProductoEntity> agregarStock(
             @PathVariable("productoId") Integer productoId,
@@ -122,7 +150,8 @@ public class ProductoController {
             return ResponseEntity.badRequest().build();
         }
     }
-    // Endpoint para quitar stock de un lote específico de un producto
+
+    // Quitar stock de un lote
     @PutMapping("/{productoId}/lotes/{loteId}/quitar-stock")
     public ResponseEntity<ProductoEntity> quitarStock(
             @PathVariable("productoId") Integer productoId,
@@ -136,56 +165,77 @@ public class ProductoController {
         }
     }
 
-    // Endpoint para obtener productos con stock bajo (<= 5)
-    @GetMapping("/stock-bajo")
-    public ResponseEntity<List<ProductoEntity>> getProductosStockBajo() {
-        List<ProductoEntity> productosStockBajo = productoService.findProductosStockBajo();
-        return ResponseEntity.ok(productosStockBajo);
-    }
+    // ====================== ORDENAMIENTOS ======================
 
-    // Ordenar productos de A a Z
+    // Nombre A → Z
     @GetMapping("/orden/nombre")
     public ResponseEntity<List<ProductoEntity>> ordenarPorNombreAZ() {
         List<ProductoEntity> productos = productoService.findAllOrderByNombreAsc();
         return ResponseEntity.ok(productos);
     }
 
-    // Ordenar productos por peso descendente
+    // Nombre Z → A
+    @GetMapping("/orden/nombre-desc")
+    public ResponseEntity<List<ProductoEntity>> ordenarPorNombreZA() {
+        List<ProductoEntity> productos = productoService.findAllOrderByNombreDesc();
+        return ResponseEntity.ok(productos);
+    }
+
+    // Peso ascendente
+    @GetMapping("/orden/peso-asc")
+    public ResponseEntity<List<ProductoEntity>> ordenarPorPesoAsc() {
+        List<ProductoEntity> productos = productoService.findAllOrderByPesoAsc();
+        return ResponseEntity.ok(productos);
+    }
+
+    // Peso descendente
     @GetMapping("/orden/peso-desc")
     public ResponseEntity<List<ProductoEntity>> ordenarPorPesoDesc() {
         List<ProductoEntity> productos = productoService.findAllOrderByPesoDesc();
         return ResponseEntity.ok(productos);
     }
 
-    // Ordenar productos por stock descendente
+    // Stock ascendente
+    @GetMapping("/orden/stock-asc")
+    public ResponseEntity<List<ProductoEntity>> ordenarPorStockAsc() {
+        List<ProductoEntity> productos = productoService.findAllOrderByStockAsc();
+        return ResponseEntity.ok(productos);
+    }
+
+    // Stock descendente
     @GetMapping("/orden/stock-desc")
     public ResponseEntity<List<ProductoEntity>> ordenarPorStockDesc() {
         List<ProductoEntity> productos = productoService.findAllOrderByStockDesc();
-        return ResponseEntity.ok(productos); //quickfix
-    }
-    // Filtrar productos por peso entre min y max de gramos, ingresados desde la vista
-    @GetMapping("/peso")
-    public ResponseEntity<List<ProductoEntity>> findByPesoBetween(@RequestParam int min, @RequestParam int max) {
-        if (min >= max) {
-            // Validación: no permitir mínimo mayor o igual al máximo
-            return ResponseEntity.badRequest().body(null);
-        }
-        List<ProductoEntity> productos = productoService.findByPesoBetween(min, max);
         return ResponseEntity.ok(productos);
     }
+
+    // Precio ascendente
+    @GetMapping("/orden/precio-asc")
+    public ResponseEntity<List<ProductoEntity>> ordenarPorPrecioAsc() {
+        List<ProductoEntity> productos = productoService.findAllOrderByPrecioAsc();
+        return ResponseEntity.ok(productos);
+    }
+
+    // Precio descendente
+    @GetMapping("/orden/precio-desc")
+    public ResponseEntity<List<ProductoEntity>> ordenarPorPrecioDesc() {
+        List<ProductoEntity> productos = productoService.findAllOrderByPrecioDesc();
+        return ResponseEntity.ok(productos);
+    }
+
+    // ====================== IMÁGENES ======================
 
     @PostMapping("/upload-image")
     public ResponseEntity<?> uploadImage(@RequestParam("file") MultipartFile file) {
         try {
             String nombreArchivo = fileStorageService.guardarImagen(file);
-            
             String imageUrl = "/uploads/productos/" + nombreArchivo;
-            
+
             Map<String, String> response = new HashMap<>();
             response.put("fileName", nombreArchivo);
             response.put("imageUrl", imageUrl);
             response.put("message", "Imagen subida exitosamente");
-            
+
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             Map<String, String> error = new HashMap<>();
@@ -201,22 +251,23 @@ public class ProductoController {
         try {
             ProductoEntity producto = productoService.findById(id)
                     .orElseThrow(() -> new RuntimeException("Producto no encontrado"));
-            
+
             if (producto.getImagen() != null && !producto.getImagen().isEmpty()) {
                 try {
-                    String oldFileName = producto.getImagen().substring(producto.getImagen().lastIndexOf("/") + 1);
+                    String oldFileName = producto.getImagen()
+                            .substring(producto.getImagen().lastIndexOf("/") + 1);
                     fileStorageService.eliminarImagen(oldFileName);
                 } catch (Exception e) {
                     System.err.println("No se pudo eliminar la imagen anterior: " + e.getMessage());
                 }
             }
-            
+
             String nombreArchivo = fileStorageService.guardarImagen(file);
             String imageUrl = "/uploads/productos/" + nombreArchivo;
-            
+
             producto.setImagen(imageUrl);
             ProductoEntity updatedProducto = productoService.save(producto);
-            
+
             return ResponseEntity.ok(updatedProducto);
         } catch (RuntimeException e) {
             Map<String, String> error = new HashMap<>();
