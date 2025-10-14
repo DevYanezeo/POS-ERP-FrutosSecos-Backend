@@ -1,0 +1,56 @@
+version: '3.8'
+
+# Production compose that pulls images from Docker Hub.
+# Edit the DB image if you didn't publish a custom DB image.
+
+services:
+  db:
+    # Using the official Postgres image. We mount the repo initdb folder so Postgres executes
+    # the SQL scripts on first initialization of the volume.
+    image: postgres:15
+    environment:
+      POSTGRES_DB: p03
+      POSTGRES_USER: p03
+      POSTGRES_PASSWORD: secret
+    volumes:
+      - ./POS-ERP-FrutosSecos-Backend/p03/database/initdb:/docker-entrypoint-initdb.d:ro
+      - db-data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  backend:
+    image: isirm/p03-backend:latest
+    env_file:
+      - ./POS-ERP-FrutosSecos-Backend/p03/.env
+    environment:
+      # Ensure the backend points to the db service by host 'db'
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/p03
+    depends_on:
+      - db
+    ports:
+      - '8080:8080'
+    restart: unless-stopped
+
+  frontend:
+    image: isirm/p03-frontend:latest
+    depends_on:
+      - backend
+    ports:
+      - '3000:3000'
+    restart: unless-stopped
+
+volumes:
+  db-data:
+
+# Usage notes:
+# - If you used a private repo, run `docker login` on the VM before `docker compose pull`.
+# - If you don't have a baked DB image and want Postgres to execute local SQL files, either
+#   create a custom DB image including /docker-entrypoint-initdb.d (recommended for reproducible deploys),
+#   or copy your init SQL files into the VM and mount them as a volume under /docker-entrypoint-initdb.d:
+#
+#   db:
+#     image: postgres:15
+#     volumes:
+#       - ./POS-ERP-FrutosSecos-Backend/p03/database/initdb:/docker-entrypoint-initdb.d:ro
+#       - db-data:/var/lib/postgresql/data
+#
+# - To redeploy and re-run init scripts you must remove the existing volume `db-data` (careful: data loss!).
