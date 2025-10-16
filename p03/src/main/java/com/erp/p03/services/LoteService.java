@@ -75,4 +75,22 @@ public class LoteService {
                 })
                 .collect(Collectors.toList());
     }
+
+    // Actualiza la fecha de vencimiento de un lote existente.
+    @Transactional
+    public LoteEntity updateFechaVencimiento(int idLote, LocalDate nuevaFecha) {
+        LoteEntity lote = loteRepository.findById(idLote)
+                .orElseThrow(() -> new IllegalArgumentException("Lote no encontrado"));
+        lote.setFechaVencimiento(nuevaFecha);
+        return loteRepository.save(lote);
+    }
+
+    // Actualiza el estado (activo/inactivo en booleanos) de un lote existente.
+    @Transactional
+    public LoteEntity updateEstadoLote(int idLote, Boolean nuevoEstado) {
+        LoteEntity lote = loteRepository.findById(idLote)
+                .orElseThrow(() -> new IllegalArgumentException("Lote no encontrado"));
+        lote.setEstado(nuevoEstado);
+        return loteRepository.save(lote);
+    }
 }

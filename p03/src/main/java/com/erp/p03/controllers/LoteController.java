@@ -4,6 +4,8 @@ package com.erp.p03.controllers;
 import com.erp.p03.controllers.dto.ProductoLoteVencimientoDTO;
 import com.erp.p03.entities.LoteEntity;
 import com.erp.p03.services.LoteService;
+import lombok.Getter;
+import lombok.Setter;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -45,5 +47,41 @@ public class LoteController {
     public ResponseEntity<List<ProductoLoteVencimientoDTO>> alertasVencimiento(@RequestParam(defaultValue = "30") int dias) {
         List<ProductoLoteVencimientoDTO> alertas = loteService.findLotesVencimientoProximoDTO(dias);
         return ResponseEntity.ok(alertas);
+    }
+
+    // Modifica la fecha de vencimiento de un lote existente
+    @PatchMapping("/{id}/fecha-vencimiento")
+    public ResponseEntity<LoteEntity> modificarFechaVencimiento(@PathVariable int id, @RequestBody FechaVencimientoRequest request) {
+        // Llama al servicio para actualizar la fecha
+        try {
+            LoteEntity actualizado = loteService.updateFechaVencimiento(id, request.getFechaVencimiento());
+            return ResponseEntity.ok(actualizado);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    //Getter-Setter para recibir la nueva fecha de vencimiento
+    @Getter @Setter
+    public static class FechaVencimientoRequest {
+        private java.time.LocalDate fechaVencimiento;
+    }
+
+    //Modifica el estado (activo/inactivo en booleano) de un lote existente
+
+    @PatchMapping("/{id}/estado")
+    public ResponseEntity<LoteEntity> modificarEstadoLote(@PathVariable int id, @RequestBody EstadoLoteRequest request) {
+        try {
+            LoteEntity actualizado = loteService.updateEstadoLote(id, request.getEstado());
+            return ResponseEntity.ok(actualizado);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    //Getter-Setter para recibir el nuevo estado del Lote
+    @Getter @Setter
+    public static class EstadoLoteRequest {
+        private Boolean estado;
     }
 }
