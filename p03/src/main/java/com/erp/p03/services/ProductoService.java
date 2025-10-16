@@ -1,5 +1,6 @@
 package com.erp.p03.services;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.List;
@@ -13,10 +14,10 @@ import com.erp.p03.entities.CategoriaEntity;
 import com.erp.p03.entities.LoteEntity;
 import com.erp.p03.repositories.CategoriaRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.erp.p03.entities.ProductoEntity;
 import com.erp.p03.repositories.ProductoRepository;
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class ProductoService {
@@ -29,6 +30,7 @@ public class ProductoService {
         this.categoriaRepository = categoriaRepository;
     }
 
+    // ======================== CRUD BÁSICO =========================
     public List<ProductoEntity> findAll() {
         return productoRepository.findAll();
     }
@@ -49,17 +51,76 @@ public class ProductoService {
         return productoRepository.existsById(id);
     }
 
+    // ======================== FILTROS =========================
+
+    // Filtrar productos activos o inactivos
     public List<ProductoEntity> findByEstado(Boolean estado) {
         return productoRepository.findByEstado(estado);
     }
 
+    // Filtrar productos por categoría
     public List<ProductoEntity> findByCategoriaId(Integer categoriaId) {
         return productoRepository.findByCategoriaId(categoriaId);
     }
 
+    // Buscar por nombre parcial (case-insensitive)
     public List<ProductoEntity> findByNombreContaining(String nombre) {
         return productoRepository.findByNombreContainingIgnoreCase(nombre);
     }
+
+    // Filtrar productos por peso entre un mínimo y un máximo
+    public List<ProductoEntity> findByPesoBetween(int min, int max) {
+        return productoRepository.findByPesoBetween(min, max);
+    }
+
+    // Filtrar productos por precio entre un mínimo y un máximo
+    public List<ProductoEntity> findByPrecioBetween(BigDecimal min, BigDecimal max) {
+        return productoRepository.findByPrecioBetween(min, max);
+    }
+
+    // ======================== ORDENAMIENTOS =========================
+
+    // Ordenar productos por nombre (A → Z)
+    public List<ProductoEntity> findAllOrderByNombreAsc() {
+        return productoRepository.findAllByOrderByNombreAsc();
+    }
+
+    // Ordenar productos por nombre (Z → A)
+    public List<ProductoEntity> findAllOrderByNombreDesc() {
+        return productoRepository.findAllByOrderByNombreDesc();
+    }
+
+    // Ordenar productos por peso ascendente (menor a mayor)
+    public List<ProductoEntity> findAllOrderByPesoAsc() {
+        return productoRepository.findAllByOrderByPesoAsc();
+    }
+
+    // Ordenar productos por peso descendente (mayor a menor)
+    public List<ProductoEntity> findAllOrderByPesoDesc() {
+        return productoRepository.findAllByOrderByPesoDesc();
+    }
+
+    // Ordenar productos por stock ascendente
+    public List<ProductoEntity> findAllOrderByStockAsc() {
+        return productoRepository.findAllByOrderByStockAsc();
+    }
+
+    // Ordenar productos por stock descendente
+    public List<ProductoEntity> findAllOrderByStockDesc() {
+        return productoRepository.findAllByOrderByStockDesc();
+    }
+
+    // Ordenar productos por precio ascendente
+    public List<ProductoEntity> findAllOrderByPrecioAsc() {
+        return productoRepository.findAllByOrderByPrecioAsc();
+    }
+
+    // Ordenar productos por precio descendente
+    public List<ProductoEntity> findAllOrderByPrecioDesc() {
+        return productoRepository.findAllByOrderByPrecioDesc();
+    }
+
+    // ======================== LOTES Y STOCK =========================
 
     // Calcula el stock total a partir de los lotes activos
     private int stockDesdeLotes(ProductoEntity producto) {
@@ -71,9 +132,7 @@ public class ProductoService {
                 .sum();
     }
 
-    // Agrega stock al producto con el id dado y retorna el producto actualizado
-
-
+    // Agregar stock a un producto en un lote específico
     @Transactional
     public ProductoEntity agregarStock(int productoId, int loteId, int cantidad) {
         ProductoEntity producto = productoRepository.findById(productoId)
@@ -81,7 +140,7 @@ public class ProductoService {
 
         List<LoteEntity> lotes = Optional.ofNullable(producto.getLotes())
                 .orElseThrow(() -> new RuntimeException("Producto no tiene lotes"));
-        // Buscar lote que se va a actualizar
+
         boolean encontrado = false;
         for (LoteEntity l : lotes) {
             if (Objects.equals(l.getIdLote(), loteId)) {
@@ -92,10 +151,8 @@ public class ProductoService {
             }
         }
 
-        if (!encontrado) {
-            throw new RuntimeException("Lote no encontrado");
-        }
-        // Actualizar el stock total del prodducto
+        if (!encontrado) throw new RuntimeException("Lote no encontrado");
+
         producto.setLotes(lotes);
         int totalStock = stockDesdeLotes(producto);
         producto.setStock(totalStock);
@@ -103,8 +160,7 @@ public class ProductoService {
         return productoRepository.save(producto);
     }
 
-
-    // Quita stock al producto con el id dado y retorna el producto actualizado
+    // Quitar stock a un producto en un lote específico
     @Transactional
     public ProductoEntity quitarStock(int productoId, int loteId, int cantidad) {
         ProductoEntity producto = productoRepository.findById(productoId)
@@ -112,7 +168,7 @@ public class ProductoService {
 
         List<LoteEntity> lotes = Optional.ofNullable(producto.getLotes())
                 .orElseThrow(() -> new RuntimeException("Producto no tiene lotes"));
-        // Buscar lote que se va a actualizar
+
         boolean encontrado = false;
         for (LoteEntity l : lotes) {
             if (Objects.equals(l.getIdLote(), loteId)) {
@@ -123,10 +179,8 @@ public class ProductoService {
             }
         }
 
-        if (!encontrado) {
-            throw new RuntimeException("Lote no encontrado");
-        }
-        // Actualizar el stock total del prodducto
+        if (!encontrado) throw new RuntimeException("Lote no encontrado");
+
         producto.setLotes(lotes);
         int totalStock = stockDesdeLotes(producto);
         producto.setStock(totalStock);
@@ -134,22 +188,24 @@ public class ProductoService {
         return productoRepository.save(producto);
     }
 
-    // Devuelve la lista de productos cuyo stock es menor o igual a 5
+    // ======================== REPORTES / VISTAS =========================
+
+    // Devuelve productos cuyo stock sea menor o igual a 5 (alerta de stock bajo)
     public List<ProductoEntity> findProductosStockBajo() {
-        // Busca productos with stock <= 5
         return productoRepository.findAll().stream()
                 .filter(producto -> {
-                    int stock = Optional.ofNullable(producto.getStock()).orElse(stockDesdeLotes(producto));
+                    int stock = Optional.ofNullable(producto.getStock())
+                            .orElse(stockDesdeLotes(producto));
                     return stock <= 5;
                 })
                 .toList();
     }
 
-    // Devuelve la lista de productos con el nombre de la categoría a la que pertenece
+    // Devuelve productos junto con su categoría y lotes en un DTO
     public List<ProductoConCategoriaDTO> obtenerProductosConCategoria() {
-        // usar findAllWithLotes para traer lotes en la misma consulta y evitar LazyInitialization
         List<ProductoEntity> productos = productoRepository.findAllWithLotes();
         List<CategoriaEntity> categorias = categoriaRepository.findAll();
+
         return productos.stream().map(producto -> {
             ProductoConCategoriaDTO dto = new ProductoConCategoriaDTO();
             dto.setIdProducto(producto.getIdProducto());
@@ -157,12 +213,16 @@ public class ProductoService {
             dto.setDescripcion(producto.getDescripcion());
             dto.setImagen(producto.getImagen());
             dto.setPrecio(producto.getPrecio());
-            // Calculamos stock: preferimos el campo stock si no es nulo, sino sumamos lotes activos
-            int stockCalc = Optional.ofNullable(producto.getStock()).orElse(stockDesdeLotes(producto));
+
+            // Calcular stock total desde campo o lotes
+            int stockCalc = Optional.ofNullable(producto.getStock())
+                    .orElse(stockDesdeLotes(producto));
             dto.setStock(stockCalc);
+
             dto.setUnidad(producto.getUnidad());
             dto.setEstado(producto.getEstado());
-            // Fecha de vencimiento mínima entre lotes activos
+
+            // Buscar la fecha de vencimiento más próxima entre lotes activos
             Optional<LocalDate> fechaVenc = Optional.empty();
             if (producto.getLotes() != null) {
                 fechaVenc = producto.getLotes().stream()
@@ -172,9 +232,11 @@ public class ProductoService {
                         .min(Comparator.naturalOrder());
             }
             dto.setFechaVencimiento(fechaVenc.orElse(null));
+
             dto.setCodigo(producto.getCodigo());
             dto.setCategoriaId(producto.getCategoriaId());
-            // Validar que categoriaId no sea null antes de buscar
+
+            // Buscar nombre de la categoría
             if (producto.getCategoriaId() != null) {
                 categorias.stream()
                         .filter(categoria -> Objects.equals(categoria.getIdCategoria(), producto.getCategoriaId()))
@@ -184,7 +246,7 @@ public class ProductoService {
                 dto.setNombreCategoria(null);
             }
 
-            // Mapear lotes a LoteDTO
+            // Mapear los lotes a DTO
             if (producto.getLotes() != null) {
                 List<LoteDTO> lotes = producto.getLotes().stream()
                         .filter(Objects::nonNull)
@@ -205,25 +267,4 @@ public class ProductoService {
             return dto;
         }).toList();
     }
-
-    //ORDENAR PRODUCTOS
-    //Nombre A a la Z
-    public List<ProductoEntity> findAllOrderByNombreAsc() {
-        return productoRepository.findAllByOrderByNombreAsc();
-    }
-    //Peso descendente, mayor a menor
-    public List<ProductoEntity> findAllOrderByPesoDesc() {
-        return productoRepository.findAllByOrderByPesoDesc();
-    }
-    //Stock descendente, mayor a menor
-    public List<ProductoEntity> findAllOrderByStockDesc() {
-        return productoRepository.findAllByOrderByStockDesc();
-    }
-
-
-    public List<ProductoEntity> findByPesoBetween(int min, int max) {
-        return productoRepository.findByPesoBetween(min, max);
-    }
-
-
 }
