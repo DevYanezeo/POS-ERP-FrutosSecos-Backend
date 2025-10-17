@@ -68,11 +68,6 @@ public class ProductoService {
         return productoRepository.findByNombreContainingIgnoreCase(nombre);
     }
 
-    // Filtrar productos por peso entre un mínimo y un máximo
-    public List<ProductoEntity> findByPesoBetween(int min, int max) {
-        return productoRepository.findByPesoBetween(min, max);
-    }
-
     // Filtrar productos por precio entre un mínimo y un máximo
     public List<ProductoEntity> findByPrecioBetween(BigDecimal min, BigDecimal max) {
         return productoRepository.findByPrecioBetween(min, max);
@@ -88,16 +83,6 @@ public class ProductoService {
     // Ordenar productos por nombre (Z → A)
     public List<ProductoEntity> findAllOrderByNombreDesc() {
         return productoRepository.findAllByOrderByNombreDesc();
-    }
-
-    // Ordenar productos por peso ascendente (menor a mayor)
-    public List<ProductoEntity> findAllOrderByPesoAsc() {
-        return productoRepository.findAllByOrderByPesoAsc();
-    }
-
-    // Ordenar productos por peso descendente (mayor a menor)
-    public List<ProductoEntity> findAllOrderByPesoDesc() {
-        return productoRepository.findAllByOrderByPesoDesc();
     }
 
     // Ordenar productos por stock ascendente

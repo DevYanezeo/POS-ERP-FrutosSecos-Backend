@@ -30,7 +30,6 @@ public class ProductoEntity {
     private String codigo; // codigo de barras
     @Column(name = "categoria_id")
     private Integer categoriaId;
-    private Integer peso; // peso en gramos
     @OneToMany(mappedBy = "producto", fetch = FetchType.LAZY,
             cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonIgnoreProperties("producto")

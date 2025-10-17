@@ -16,17 +16,11 @@ public interface ProductoRepository extends JpaRepository<ProductoEntity, Intege
     List<ProductoEntity> findByNombreContainingIgnoreCase(String nombre);
     List<ProductoEntity> findByEstadoAndCategoriaId(Boolean estado, Integer categoriaId);
 
-    // Filtro por peso y precio
-    List<ProductoEntity> findByPesoBetween(int min, int max);
     List<ProductoEntity> findByPrecioBetween(BigDecimal min, BigDecimal max);
 
     // Ordenamientos por nombre
     List<ProductoEntity> findAllByOrderByNombreAsc();
     List<ProductoEntity> findAllByOrderByNombreDesc();
-
-    // Ordenamientos por peso
-    List<ProductoEntity> findAllByOrderByPesoAsc();
-    List<ProductoEntity> findAllByOrderByPesoDesc();
 
     // Ordenamientos por stock
     List<ProductoEntity> findAllByOrderByStockAsc();

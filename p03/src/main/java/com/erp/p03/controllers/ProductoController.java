@@ -105,17 +105,6 @@ public class ProductoController {
         return ResponseEntity.ok(productos);
     }
 
-    // Filtrar productos por peso entre min y max (gramos)
-    @GetMapping("/peso")
-    public ResponseEntity<List<ProductoEntity>> findByPesoBetween(
-            @RequestParam int min, @RequestParam int max) {
-        if (min >= max) {
-            return ResponseEntity.badRequest().body(null);
-        }
-        List<ProductoEntity> productos = productoService.findByPesoBetween(min, max);
-        return ResponseEntity.ok(productos);
-    }
-
     // 🔹 Filtrar productos por rango de precios (CLP)
     @GetMapping("/precio")
     public ResponseEntity<List<ProductoEntity>> findByPrecioBetween(
@@ -178,20 +167,6 @@ public class ProductoController {
     @GetMapping("/orden/nombre-desc")
     public ResponseEntity<List<ProductoEntity>> ordenarPorNombreZA() {
         List<ProductoEntity> productos = productoService.findAllOrderByNombreDesc();
-        return ResponseEntity.ok(productos);
-    }
-
-    // Peso ascendente
-    @GetMapping("/orden/peso-asc")
-    public ResponseEntity<List<ProductoEntity>> ordenarPorPesoAsc() {
-        List<ProductoEntity> productos = productoService.findAllOrderByPesoAsc();
-        return ResponseEntity.ok(productos);
-    }
-
-    // Peso descendente
-    @GetMapping("/orden/peso-desc")
-    public ResponseEntity<List<ProductoEntity>> ordenarPorPesoDesc() {
-        List<ProductoEntity> productos = productoService.findAllOrderByPesoDesc();
         return ResponseEntity.ok(productos);
     }
 
