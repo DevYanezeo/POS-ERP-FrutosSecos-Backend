@@ -7,9 +7,8 @@ import org.springframework.stereotype.Repository;
 import java.time.LocalDate;
 import java.util.List;
 
-
 @Repository
-public interface LoteRepository extends JpaRepository<LoteEntity,Integer> {
+public interface LoteRepository extends JpaRepository<LoteEntity, Integer> {
     List<LoteEntity> findByProducto_IdProductoOrderByFechaVencimientoAsc(Integer productoId);
     List<LoteEntity> findByFechaVencimientoBetween(LocalDate desde, LocalDate hasta);
 }
