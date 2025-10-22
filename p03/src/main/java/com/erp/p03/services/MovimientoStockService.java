@@ -34,7 +34,8 @@ public class MovimientoStockService {
         // Según el tipo de movimiento, suma o resta stock
         if (tipo.equalsIgnoreCase("INGRESO") || tipo.equalsIgnoreCase("AJUSTE_POSITIVO")) {
             producto.setStock(producto.getStock() + cantidad); // Suma stock
-        } else if (tipo.equalsIgnoreCase("MERMA") || tipo.equalsIgnoreCase("VENCIMIENTO") || tipo.equalsIgnoreCase("AJUSTE_NEGATIVO")) {
+        } else if (tipo.equalsIgnoreCase("MERMA") || tipo.equalsIgnoreCase("VENCIMIENTO") || tipo.equalsIgnoreCase("AJUSTE_NEGATIVO")
+                || tipo.equalsIgnoreCase("SALIDA") || tipo.equalsIgnoreCase("VENTA")) {
             int nuevoStock = producto.getStock() - cantidad;
             if (nuevoStock < 0) {
                 throw new RuntimeException("Stock insuficiente para este movimiento");
