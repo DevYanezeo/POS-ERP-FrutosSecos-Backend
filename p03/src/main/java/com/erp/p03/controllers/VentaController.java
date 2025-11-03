@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.HttpStatus;
 
@@ -49,6 +50,49 @@ public class VentaController {
     public ResponseEntity<Void> eliminar(@PathVariable Integer id) {
         ventaService.deleteById(id);
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Elimina un detalle (producto) de una venta activa y revierte el stock.
+     * Ruta: DELETE /api/ventas/{ventaId}/detalles/{detalleId}?idLote=123&usuarioId=5
+     * - idLote: (opcional) si se conoce el lote original, la cantidad se suma de vuelta a ese lote.
+     * - usuarioId: (opcional pero recomendado) id del usuario que realiza la operación (para movimientos de stock).
+     * Devuelve la venta actualizada.
+     */
+    @DeleteMapping("/{ventaId}/detalles/{detalleId}")
+    public ResponseEntity<VentaEntity> quitarProductoDeVenta(
+            @PathVariable Integer ventaId,
+            @PathVariable Integer detalleId,
+            @RequestParam(required = false) Integer idLote,
+            @RequestParam(required = false) Integer usuarioId) {
+        VentaEntity updated = ventaService.quitarProductoDeVenta(ventaId, detalleId, idLote, usuarioId);
+        return ResponseEntity.ok(updated);
+    }
+
+    /**
+     * Convenience: eliminar detalle indicando productoId en lugar de idDetalle.
+     * DELETE /api/ventas/{ventaId}/detalles/producto/{productoId}?idLote=123&usuarioId=5
+     */
+    @DeleteMapping("/{ventaId}/detalles/producto/{productoId}")
+    public ResponseEntity<VentaEntity> quitarProductoPorProducto(
+            @PathVariable Integer ventaId,
+            @PathVariable Integer productoId,
+            @RequestParam(required = false) Integer idLote,
+            @RequestParam(required = false) Integer usuarioId) {
+        VentaEntity updated = ventaService.quitarProductoDeVentaPorProducto(ventaId, productoId, idLote, usuarioId);
+        return ResponseEntity.ok(updated);
+    }
+
+    /**
+     * Historial de ventas: permite filtrar opcionalmente por rango de fechas y por usuario.
+     */
+    @GetMapping("/historial")
+    public ResponseEntity<List<VentaEntity>> historial(
+            @RequestParam(required = false) String desde,
+            @RequestParam(required = false) String hasta,
+            @RequestParam(required = false) Integer usuarioId) {
+        List<VentaEntity> lista = ventaService.historialVentas(desde, hasta, usuarioId);
+        return ResponseEntity.ok(lista);
     }
 
 }
