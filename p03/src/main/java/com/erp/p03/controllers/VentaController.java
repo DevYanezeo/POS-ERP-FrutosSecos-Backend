@@ -13,6 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.HttpStatus;
 
 import com.erp.p03.services.VentaService;
+import com.erp.p03.controllers.dto.VentaWithHolidayDTO;
 import com.erp.p03.controllers.dto.VentaRequest;
 import com.erp.p03.entities.VentaEntity;
 import java.util.List;
@@ -92,6 +93,19 @@ public class VentaController {
             @RequestParam(required = false) String hasta,
             @RequestParam(required = false) Integer usuarioId) {
         List<VentaEntity> lista = ventaService.historialVentas(desde, hasta, usuarioId);
+        return ResponseEntity.ok(lista);
+    }
+
+    /**
+     * Historial con feriados: devuelve DTOs que incluyen `isHoliday` y `holidayName`.
+     * GET /api/ventas/historial/feriados?desde=dd/MM/yyyy&hasta=dd/MM/yyyy&usuarioId=1
+     */
+    @GetMapping("/historial/feriados")
+    public ResponseEntity<List<VentaWithHolidayDTO>> historialConFeriados(
+            @RequestParam(required = false) String desde,
+            @RequestParam(required = false) String hasta,
+            @RequestParam(required = false) Integer usuarioId) {
+        List<VentaWithHolidayDTO> lista = ventaService.historialVentasConFeriados(desde, hasta, usuarioId);
         return ResponseEntity.ok(lista);
     }
 

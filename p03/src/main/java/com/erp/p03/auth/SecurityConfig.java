@@ -19,6 +19,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.security.config.Customizer;
 import java.util.Arrays;
 
 @Configuration
@@ -37,7 +38,7 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
     http
         .csrf(AbstractHttpConfigurer::disable)
-        .cors().and()
+        .cors(Customizer.withDefaults())
         .authorizeHttpRequests(req ->
             req.requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/api/usuarios/**").hasAnyRole("ADMIN")
@@ -54,6 +55,13 @@ public class SecurityConfig {
                 .requestMatchers("/api/detalle-ventas/**").hasAnyRole("ADMIN", "VENDEDOR", "CAJERO")
 
                 .requestMatchers("/api/movimientos-stock/**").hasAnyRole("ADMIN", "VENDEDOR")
+
+                // Reglas para endpoints de feriados: lectura permitida a roles comunes,
+                // pero crear/editar/eliminar sólo para ADMIN
+                .requestMatchers(HttpMethod.GET, "/api/feriados/**").hasAnyRole("ADMIN", "VENDEDOR", "CAJERO")
+                .requestMatchers(HttpMethod.POST, "/api/feriados/**").hasAnyRole("ADMIN")
+                .requestMatchers(HttpMethod.PATCH, "/api/feriados/**").hasAnyRole("ADMIN")
+                .requestMatchers(HttpMethod.DELETE, "/api/feriados/**").hasAnyRole("ADMIN")
 
                 .anyRequest().authenticated()
         )
