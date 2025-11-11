@@ -19,8 +19,12 @@ import com.erp.p03.controllers.dto.VentaRequest;
 import com.erp.p03.entities.DetalleVentaEntity;
 import com.erp.p03.entities.ProductoEntity;
 import com.erp.p03.entities.VentaEntity;
-import com.erp.p03.repositories.DetalleVentaRepository;
 import com.erp.p03.repositories.VentaRepository;
+import com.erp.p03.repositories.DetalleVentaRepository;
+import com.erp.p03.controllers.dto.VentaWithHolidayDTO;
+import com.erp.p03.services.FeriadoService;
+import com.erp.p03.entities.FeriadoEntity;
+import java.time.LocalDate;
 
 @Service
 public class VentaService {
@@ -30,17 +34,20 @@ public class VentaService {
     private final MovimientoStockService movimientoStockService;
     private final ProductoService productoService;
     private final LoteService loteService;
+    private final FeriadoService feriadoService;
 
     public VentaService(VentaRepository ventaRepository,
                         DetalleVentaRepository detalleVentaRepository,
                         MovimientoStockService movimientoStockService,
                         ProductoService productoService,
-                        LoteService loteService) {
+                        LoteService loteService,
+                        FeriadoService feriadoService) {
         this.ventaRepository = ventaRepository;
         this.detalleVentaRepository = detalleVentaRepository;
         this.movimientoStockService = movimientoStockService;
         this.productoService = productoService;
         this.loteService = loteService;
+        this.feriadoService = feriadoService; // ahora se inyecta el servicio de feriados
     }
 
     public List<VentaEntity> findAll() {
@@ -286,7 +293,7 @@ public class VentaService {
     }
 
     /**
-     * Versión convenience: quitar un producto de una venta identificando por productoId en vez de idDetalle.
+     * Quitar un producto de una venta identificando por productoId en vez de idDetalle.
      * Busca el detalle correspondiente y delega a quitarProductoDeVenta.
      */
     @Transactional
@@ -294,6 +301,52 @@ public class VentaService {
         DetalleVentaEntity detalle = detalleVentaRepository.findByVentaIdAndProductoId(ventaId, productoId)
                 .orElseThrow(() -> new IllegalArgumentException("Detalle de venta no encontrado para el producto en esa venta"));
         return quitarProductoDeVenta(ventaId, detalle.getIdDetalleVenta(), idLote, usuarioId);
+    }
+
+    // Transforma el historial de ventas en DTOs marcando feriados
+    public List<VentaWithHolidayDTO> historialVentasConFeriados(String desde, String hasta, Integer usuarioId) {
+        List<VentaEntity> ventas = historialVentas(desde, hasta, usuarioId);
+
+        // Determinar disponibilidad del servicio de feriados y precargar feriados recurrentes.
+        final boolean hasFeriadoService = this.feriadoService != null;
+        final List<FeriadoEntity> recurrentes = hasFeriadoService
+                ? feriadoService.findAll().stream()
+                    .filter(f -> Boolean.TRUE.equals(f.getRecurrenteAnual()) && Boolean.TRUE.equals(f.getActivo()) && f.getFecha() != null)
+                    .toList()
+                : List.of();
+
+        return ventas.stream().map(v -> {
+             VentaWithHolidayDTO dto = new VentaWithHolidayDTO();
+            dto.setIdVenta(v.getIdVenta());
+            dto.setFecha(v.getFecha());
+            dto.setUsuarioId(v.getUsuarioId());
+            dto.setSubtotal(v.getSubtotal());
+            dto.setIva(v.getIva());
+            dto.setTotal(v.getTotal());
+            dto.setMetodoPago(v.getMetodoPago());
+            dto.setIsHoliday(false);
+            dto.setHolidayName(null);
+
+            if (hasFeriadoService && v.getFecha() != null) {
+                LocalDate fecha = v.getFecha().toLocalDate();
+                List<FeriadoEntity> exactos = feriadoService.findByFecha(fecha);
+                if (!exactos.isEmpty()) {
+                    dto.setIsHoliday(true);
+                    dto.setHolidayName(exactos.get(0).getNombre());
+                } else {
+                    for (FeriadoEntity fr : recurrentes) {
+                        if (fr.getFecha() != null && fr.getFecha().getDayOfMonth() == fecha.getDayOfMonth()
+                                && fr.getFecha().getMonth() == fecha.getMonth()) {
+                            dto.setIsHoliday(true);
+                            dto.setHolidayName(fr.getNombre());
+                            break;
+                        }
+                    }
+                }
+            }
+
+            return dto;
+        }).toList();
     }
 
 }

@@ -34,6 +34,15 @@ public class FeriadoService {
                 .toList();
     }
 
+    // Devuelve feriados activos que coincidan exactamente con la fecha proporcionada.
+    // Útil para marcar si un día concreto es feriado.
+    public List<FeriadoEntity> findByFecha(LocalDate fecha) {
+        if (fecha == null) return List.of();
+        return feriadoRepository.findByFecha(fecha).stream()
+                .filter(f -> Boolean.TRUE.equals(f.getActivo()))
+                .toList();
+    }
+
     @Transactional
     public FeriadoEntity save(FeriadoEntity feriado) {
         // podría añadirse validación de unicidad por fecha+scope
@@ -57,4 +66,3 @@ public class FeriadoService {
         feriadoRepository.deleteById(id);
     }
 }
-
