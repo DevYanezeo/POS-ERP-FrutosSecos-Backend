@@ -49,7 +49,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.PUT, "/api/productos/*/agregar-stock", "/api/productos/*/quitar-stock").hasAnyRole("ADMIN", "VENDEDOR", "CAJERO")
                 .requestMatchers(HttpMethod.PUT, "/api/productos/**").hasAnyRole("ADMIN")
 
-                .requestMatchers("/api/categorias/**").hasAnyRole("ADMIN", "VENDEDOR")
+                .requestMatchers("/api/categorias/**").hasAnyRole("ADMIN", "VENDEDOR","CAJERO")
 
                 .requestMatchers("/api/ventas/**").hasAnyRole("ADMIN", "VENDEDOR", "CAJERO")
                 .requestMatchers("/api/detalle-ventas/**").hasAnyRole("ADMIN", "VENDEDOR", "CAJERO")
