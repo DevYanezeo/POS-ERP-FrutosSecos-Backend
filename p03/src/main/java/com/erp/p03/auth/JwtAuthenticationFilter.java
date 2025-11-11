@@ -9,6 +9,8 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.JwtException;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -42,8 +44,24 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
 
-        jwt = authHeader.substring(7);
-        userEmail = jwtUtil.extractUsername(jwt);
+        try {
+            jwt = authHeader.substring(7);
+            userEmail = jwtUtil.extractUsername(jwt);
+        } catch (ExpiredJwtException e) {
+            // Token expired -> respond 401 with JSON so frontend can handle redirect to login
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.setHeader("WWW-Authenticate", "Bearer realm=\"p03\", error=\"invalid_token\", error_description=\"The access token expired\"");
+            response.setContentType("application/json");
+            response.getWriter().write("{\"error\":\"invalid_token\",\"code\":\"ERR_AUTH_EXPIRED\",\"message\":\"Token expired\"}");
+            return;
+        } catch (JwtException | IllegalArgumentException e) {
+            // Malformed or invalid token
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.setHeader("WWW-Authenticate", "Bearer realm=\"p03\", error=\"invalid_token\", error_description=\"Invalid token\"");
+            response.setContentType("application/json");
+            response.getWriter().write("{\"error\":\"invalid_token\",\"code\":\"ERR_AUTH_MALFORMED\",\"message\":\"Invalid token\"}");
+            return;
+        }
 
         if (userEmail != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             UserDetails userDetails = this.userDetailsService.loadUserByUsername(userEmail);
