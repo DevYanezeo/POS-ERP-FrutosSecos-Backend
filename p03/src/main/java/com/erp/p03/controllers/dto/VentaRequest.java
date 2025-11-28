@@ -12,4 +12,9 @@ public class VentaRequest {
     private Integer iva;
     private Integer total;
     private List<DetalleVentaRequest> detalles;
+
+    // Campos para soporte de fiado
+    private Boolean fiado;
+    private Integer clienteId;
+    private String fechaVencimientoPago; // formato dd/MM/yyyy (opcional)
 }

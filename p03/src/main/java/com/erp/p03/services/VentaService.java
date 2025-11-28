@@ -16,15 +16,16 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.erp.p03.controllers.dto.DetalleVentaRequest;
 import com.erp.p03.controllers.dto.VentaRequest;
+import com.erp.p03.controllers.dto.PagoRequest;
 import com.erp.p03.entities.DetalleVentaEntity;
 import com.erp.p03.entities.ProductoEntity;
 import com.erp.p03.entities.VentaEntity;
+import com.erp.p03.entities.PagoEntity;
 import com.erp.p03.repositories.VentaRepository;
 import com.erp.p03.repositories.DetalleVentaRepository;
+import com.erp.p03.repositories.PagoRepository;
 import com.erp.p03.controllers.dto.VentaWithHolidayDTO;
-import com.erp.p03.services.FeriadoService;
 import com.erp.p03.entities.FeriadoEntity;
-import java.time.LocalDate;
 
 @Service
 public class VentaService {
@@ -35,19 +36,22 @@ public class VentaService {
     private final ProductoService productoService;
     private final LoteService loteService;
     private final FeriadoService feriadoService;
+    private final PagoRepository pagoRepository;
 
     public VentaService(VentaRepository ventaRepository,
                         DetalleVentaRepository detalleVentaRepository,
                         MovimientoStockService movimientoStockService,
                         ProductoService productoService,
                         LoteService loteService,
-                        FeriadoService feriadoService) {
+                        FeriadoService feriadoService,
+                        PagoRepository pagoRepository) {
         this.ventaRepository = ventaRepository;
         this.detalleVentaRepository = detalleVentaRepository;
         this.movimientoStockService = movimientoStockService;
         this.productoService = productoService;
         this.loteService = loteService;
         this.feriadoService = feriadoService; // ahora se inyecta el servicio de feriados
+        this.pagoRepository = pagoRepository;
     }
 
     public List<VentaEntity> findAll() {
@@ -150,6 +154,27 @@ public class VentaService {
         venta.setSubtotal(request.getSubtotal());
         venta.setIva(request.getIva());
         venta.setTotal(request.getTotal());
+
+        // Gestión de fiados: si request.fiado == true, marcar venta como fiado y establecer saldoPendiente = total
+        if (request.getFiado() != null && Boolean.TRUE.equals(request.getFiado())) {
+            venta.setFiado(true);
+            venta.setSaldoPendiente(Optional.ofNullable(request.getTotal()).orElse(0));
+            venta.setClienteId(request.getClienteId());
+            // parse fechaVencimientoPago si viene (formato DD/MM/AAAA)
+            if (request.getFechaVencimientoPago() != null && !request.getFechaVencimientoPago().isBlank()) {
+                try {
+                    DateTimeFormatter f = DateTimeFormatter.ofPattern("d/M/uuuu");
+                    LocalDate d = LocalDate.parse(request.getFechaVencimientoPago().trim(), f);
+                    venta.setFechaVencimientoPago(d);
+                } catch (Exception ex) {
+                    throw new IllegalArgumentException("Formato fechaVencimientoPago inválido. Usar DD/MM/AAAA");
+                }
+            }
+        } else {
+            venta.setFiado(false);
+            venta.setSaldoPendiente(0);
+        }
+
         VentaEntity savedVenta = ventaRepository.save(venta);
 
         // 2) Crear Detalles y movimientos por cada detalle
@@ -160,6 +185,10 @@ public class VentaService {
             dv.setCantidad(d.getCantidad());
             dv.setPrecioUnitario(d.getPrecioUnitario());
             dv.setSubtotal(d.getPrecioUnitario() * d.getCantidad());
+            // Si la venta no es fiado y tiene metodoPago, aplicarlo directamente al detalle
+            if (!Boolean.TRUE.equals(savedVenta.getFiado()) && savedVenta.getMetodoPago() != null) {
+                dv.setMetodoPago(savedVenta.getMetodoPago());
+            }
             return dv;
         }).toList();
 
@@ -347,6 +376,72 @@ public class VentaService {
 
             return dto;
         }).toList();
+    }
+
+    /**
+     * Lista de ventas marcadas como fiado. Si pendientesOnly es true devuelve solo las que tienen saldo pendiente >0.
+     */
+    public List<VentaEntity> listarFiados(boolean pendientesOnly) {
+        if (pendientesOnly) {
+            return ventaRepository.findByFiadoTrueAndSaldoPendienteGreaterThan(0);
+        }
+        return ventaRepository.findByFiadoTrue();
+    }
+
+    /**
+     * Registrar un pago para una venta (fiado). Si el pago cubre el saldo, marca la venta como pagada
+     * y propaga el metodoPago a los detalles de la venta.
+     */
+    @Transactional
+    public PagoEntity registrarPago(Integer ventaId, PagoRequest request) {
+        if (request == null || request.getMonto() == null || request.getMonto() <= 0) {
+            throw new IllegalArgumentException("Monto de pago inválido");
+        }
+
+        VentaEntity venta = ventaRepository.findById(ventaId)
+                .orElseThrow(() -> new IllegalArgumentException("Venta no encontrada"));
+
+        Integer saldo = Optional.ofNullable(venta.getSaldoPendiente()).orElse(venta.getTotal());
+        if (saldo == null) saldo = 0;
+
+        if (!Boolean.TRUE.equals(venta.getFiado()) && saldo <= 0) {
+            // Si no es fiado y no tiene saldo, no hay sentido en registrar pago aquí
+            throw new IllegalArgumentException("La venta no está marcada como fiado o no tiene saldo pendiente");
+        }
+
+        int montoPago = request.getMonto();
+
+        PagoEntity pago = new PagoEntity();
+        pago.setVentaId(ventaId);
+        pago.setUsuarioId(request.getUsuarioId());
+        pago.setMonto(montoPago);
+        pago.setMetodoPago(request.getMetodoPago());
+        pago.setFecha(LocalDateTime.now());
+        pagoRepository.save(pago);
+
+        // Actualizar saldo
+        int nuevoSaldo = Math.max(saldo - montoPago, 0);
+        venta.setSaldoPendiente(nuevoSaldo);
+
+        if (nuevoSaldo == 0) {
+            venta.setFiado(false);
+            venta.setMetodoPago(request.getMetodoPago());
+            venta.setPagoCompletadoAt(LocalDateTime.now());
+
+            // Propagar metodoPago a los detalles
+            List<DetalleVentaEntity> detalles = detalleVentaRepository.findByVentaId(ventaId);
+            for (DetalleVentaEntity d : detalles) {
+                d.setMetodoPago(request.getMetodoPago());
+            }
+            detalleVentaRepository.saveAll(detalles);
+        }
+
+        ventaRepository.save(venta);
+        return pago;
+    }
+
+    public List<PagoEntity> getPagosByVentaId(Integer ventaId) {
+        return pagoRepository.findByVentaIdOrderByFechaDesc(ventaId);
     }
 
 }

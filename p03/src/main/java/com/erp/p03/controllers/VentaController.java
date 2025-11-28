@@ -15,7 +15,9 @@ import org.springframework.http.HttpStatus;
 import com.erp.p03.services.VentaService;
 import com.erp.p03.controllers.dto.VentaWithHolidayDTO;
 import com.erp.p03.controllers.dto.VentaRequest;
+import com.erp.p03.controllers.dto.PagoRequest;
 import com.erp.p03.entities.VentaEntity;
+import com.erp.p03.entities.PagoEntity;
 import java.util.List;
 
 @RestController
@@ -107,6 +109,36 @@ public class VentaController {
             @RequestParam(required = false) Integer usuarioId) {
         List<VentaWithHolidayDTO> lista = ventaService.historialVentasConFeriados(desde, hasta, usuarioId);
         return ResponseEntity.ok(lista);
+    }
+
+    // ------------------ Endpoints para fiados y pagos ------------------
+
+    /**
+     * Listar ventas fiadas.
+     * Query param: pendientesOnly=true para sólo las con saldo>0
+     */
+    @GetMapping("/fiados")
+    public ResponseEntity<List<VentaEntity>> listarFiados(@RequestParam(required = false, defaultValue = "true") boolean pendientesOnly) {
+        List<VentaEntity> lista = ventaService.listarFiados(pendientesOnly);
+        return ResponseEntity.ok(lista);
+    }
+
+    /**
+     * Obtener historial de pagos de una venta
+     */
+    @GetMapping("/{id}/pagos")
+    public ResponseEntity<List<PagoEntity>> getPagos(@PathVariable Integer id) {
+        List<PagoEntity> pagos = ventaService.getPagosByVentaId(id);
+        return ResponseEntity.ok(pagos);
+    }
+
+    /**
+     * Registrar un pago para una venta (parcial o total)
+     */
+    @PostMapping("/{id}/pagos")
+    public ResponseEntity<PagoEntity> registrarPago(@PathVariable Integer id, @RequestBody PagoRequest request) {
+        PagoEntity pago = ventaService.registrarPago(id, request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(pago);
     }
 
 }

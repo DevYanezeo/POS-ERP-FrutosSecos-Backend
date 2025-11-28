@@ -29,4 +29,11 @@ public interface VentaRepository extends JpaRepository<VentaEntity, Integer>{
     List<VentaEntity> findByFechaAfterAndUsuarioId(LocalDateTime desde, Integer usuarioId);
     List<VentaEntity> findByFechaBeforeAndUsuarioId(LocalDateTime hasta, Integer usuarioId);
 
+    // ----------------- Métodos para fiado -----------------
+    // Todas las ventas marcadas como fiado
+    List<VentaEntity> findByFiadoTrue();
+
+    // Ventas fiadas con saldo pendiente > 0
+    List<VentaEntity> findByFiadoTrueAndSaldoPendienteGreaterThan(Integer amount);
+
 }
