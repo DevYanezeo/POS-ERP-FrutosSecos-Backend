@@ -107,4 +107,15 @@ public class LoteController {
     public static class CantidadLoteRequest {
         private Integer cantidad;
     }
+
+    // ✅ Buscar lote por codigo (para escaner)
+    @GetMapping("/codigo/{codigo}")
+    public ResponseEntity<LoteEntity> obtenerPorCodigo(@PathVariable String codigo) {
+        try {
+            LoteEntity lote = loteService.findByCodigoLote(codigo);
+            return ResponseEntity.ok(lote);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
 }

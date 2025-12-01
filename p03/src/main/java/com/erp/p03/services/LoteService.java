@@ -112,4 +112,17 @@ public class LoteService {
         lote.setCantidad(nuevaCantidad);
         return loteRepository.save(lote);
     }
+
+    // Buscar por id
+    public LoteEntity findById(Integer idLote) {
+        return loteRepository.findById(idLote)
+                .orElseThrow(() -> new IllegalArgumentException("Lote no encontrado"));
+    }
+
+    // Buscar por codigo de lote
+    public LoteEntity findByCodigoLote(String codigoLote) {
+        LoteEntity lote = loteRepository.findByCodigoLote(codigoLote);
+        if (lote == null) throw new IllegalArgumentException("Lote no encontrado por codigo");
+        return lote;
+    }
 }

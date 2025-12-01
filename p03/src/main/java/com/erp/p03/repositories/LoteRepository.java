@@ -11,4 +11,6 @@ import java.util.List;
 public interface LoteRepository extends JpaRepository<LoteEntity, Integer> {
     List<LoteEntity> findByProducto_IdProductoOrderByFechaVencimientoAsc(Integer productoId);
     List<LoteEntity> findByFechaVencimientoBetween(LocalDate desde, LocalDate hasta);
+    // Buscar lote por su código de etiqueta
+    LoteEntity findByCodigoLote(String codigoLote);
 }
