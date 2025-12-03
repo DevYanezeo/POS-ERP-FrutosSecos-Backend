@@ -34,7 +34,7 @@ public class DetalleVentaEntity {
     
     private Integer subtotal; // subtotal en pesos chilenos
 
-    // Medio de pago aplicado a este detalle (se propaga cuando la venta queda totalmente pagada)
+    // Metodo de pago utilizado en esta venta
     @Column(name = "metodo_pago")
-    private String metodoPago;
+    private String metodoPago; // EFECTIVO, DEBITO, CREDITO, TRANSFERENCIA
 }
