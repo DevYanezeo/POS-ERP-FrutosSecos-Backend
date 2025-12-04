@@ -5,10 +5,8 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
-import java.util.List;
-import java.util.Optional;
-import java.util.Objects;
-import java.util.Comparator;
+import java.util.*;
+
 import com.erp.p03.entities.LoteEntity;
 
 import org.springframework.stereotype.Service;
@@ -395,12 +393,24 @@ public class VentaService {
      * Lista de ventas marcadas como fiado. Si pendientesOnly es true devuelve solo las que tienen saldo pendiente >0.
      */
     public List<VentaEntity> listarFiados(boolean pendientesOnly) {
-        if (pendientesOnly) {
-            return ventaRepository.findByFiadoTrueAndSaldoPendienteGreaterThan(0);
-        }
-        return ventaRepository.findByFiadoTrue();
-    }
+        List<VentaEntity> ventas;
 
+        if (pendientesOnly) {
+            ventas = ventaRepository.findByFiadoTrueAndSaldoPendienteGreaterThan(0);
+        } else {
+            ventas = ventaRepository.findByFiadoTrue();
+        }
+
+        // ← AGREGAR ESTO: Cargar cliente para cada venta
+        ventas.forEach(venta -> {
+            if (venta.getClienteId() != null) {
+                clienteFiadoService.findById(venta.getClienteId())
+                        .ifPresent(venta::setCliente);
+            }
+        });
+
+        return ventas;
+    }
     /**
      * Registrar un pago para una venta (fiado). Si el pago cubre el saldo, marca la venta como pagada
      * y propaga el metodoPago a los detalles de la venta.
@@ -495,10 +505,18 @@ public class VentaService {
      */
     public VentaEntity getFiadoById(Integer ventaId) {
         VentaEntity v = ventaRepository.findById(ventaId).orElse(null);
-        if (v == null) return null;
-        return Boolean.TRUE.equals(v.getFiado()) ? v : null;
-    }
+        if (v == null || !Boolean.TRUE.equals(v.getFiado())) {
+            return null;
+        }
 
+        // ← AGREGAR ESTO: Cargar cliente
+        if (v.getClienteId() != null) {
+            clienteFiadoService.findById(v.getClienteId())
+                    .ifPresent(v::setCliente);
+        }
+
+        return v;
+    }
     /**
      * Actualiza campos relevantes de un fiado (clienteId, fechaVencimientoPago, saldoPendiente, fiado)
      * La fecha se recibe en formato dd/MM/AAAA (String). Si la cadena es null o vacía no se modifica.
@@ -587,19 +605,28 @@ public class VentaService {
      */
     public List<VentaEntity> listarFiadosPorCliente(Integer clienteId, boolean pendientesOnly) {
         if (clienteId == null) throw new IllegalArgumentException("clienteId requerido");
+
         List<VentaEntity> fiados = ventaRepository.findByFiadoTrue();
-        java.util.List<VentaEntity> result = new java.util.ArrayList<>();
+        List<VentaEntity> result = new ArrayList<>();
+
+        // Cargar el cliente una sola vez
+        Optional<ClienteFiadoEntity> clienteOpt = clienteFiadoService.findById(clienteId);
+
         for (VentaEntity v : fiados) {
-            // Filtrar por clienteId
             if (clienteId.equals(v.getClienteId())) {
                 if (pendientesOnly) {
-                    if (v.getSaldoPendiente() != null && v.getSaldoPendiente() > 0) result.add(v);
-                } else result.add(v);
+                    if (v.getSaldoPendiente() != null && v.getSaldoPendiente() > 0) {
+                        clienteOpt.ifPresent(v::setCliente);  // ← AGREGAR
+                        result.add(v);
+                    }
+                } else {
+                    clienteOpt.ifPresent(v::setCliente);  // ← AGREGAR
+                    result.add(v);
+                }
             }
         }
         return result;
     }
-
     // -------------------- Reportes: productos mas vendidos --------------------
 
     /**
