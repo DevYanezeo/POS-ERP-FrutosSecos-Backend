@@ -7,6 +7,8 @@ import lombok.Getter;
 import lombok.Setter;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
@@ -14,6 +16,8 @@ import java.util.List;
 @RequestMapping("api/lote")
 @CrossOrigin("*")
 public class LoteController {
+
+    private static final Logger logger = LoggerFactory.getLogger(LoteController.class);
 
     private final LoteService loteService;
 
@@ -28,6 +32,7 @@ public class LoteController {
             LoteEntity saved = loteService.crearLote(lote);
             return ResponseEntity.ok(saved);
         } catch (IllegalArgumentException e) {
+            logger.error("Error al crear lote ({}): {}", e.getClass().getSimpleName(), e.getMessage(), e);
             return ResponseEntity.badRequest().build();
         }
     }

@@ -9,6 +9,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 import com.erp.p03.controllers.dto.LoteDTO;
+import com.erp.p03.controllers.dto.ParcialDTO;
 import com.erp.p03.controllers.dto.ProductoConCategoriaDTO;
 import com.erp.p03.entities.CategoriaEntity;
 import com.erp.p03.entities.LoteEntity;
@@ -251,5 +252,21 @@ public class ProductoService {
 
             return dto;
         }).toList();
+    }
+
+
+    // update parcial
+    @Transactional
+    public ProductoEntity parcialSave(Integer id, ParcialDTO dto) {
+        ProductoEntity producto = productoRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Producto no encontrado"));
+
+        if (dto.getNombre() != null) producto.setNombre(dto.getNombre());
+        if (dto.getDescripcion() != null) producto.setDescripcion(dto.getDescripcion());
+        if (dto.getUnidad() != null) producto.setUnidad(dto.getUnidad());
+        if (dto.getEstado() != null) producto.setEstado(dto.getEstado());
+        if (dto.getPrecio() != null) producto.setPrecio(dto.getPrecio());
+
+        return productoRepository.save(producto);
     }
 }

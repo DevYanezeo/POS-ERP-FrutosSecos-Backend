@@ -5,6 +5,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.erp.p03.controllers.dto.ParcialDTO;
 import com.erp.p03.controllers.dto.ProductoConCategoriaDTO;
 import com.erp.p03.entities.ProductoEntity;
 import com.erp.p03.services.FileStorageService;
@@ -66,6 +67,20 @@ public class ProductoController {
         try {
             producto.setIdProducto(id);
             ProductoEntity updatedProducto = productoService.save(producto);
+            return ResponseEntity.ok(updatedProducto);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    // update parcial (patch) para modificar solo el estado
+    @PutMapping("/{id}/parcial")
+    public ResponseEntity<ProductoEntity> update(@PathVariable Integer id, @RequestBody ParcialDTO productoUpdated) {
+        if (!productoService.existsById(id)) {
+            return ResponseEntity.notFound().build();
+        }
+        try {
+            ProductoEntity updatedProducto = productoService.parcialSave(id,productoUpdated);
             return ResponseEntity.ok(updatedProducto);
         } catch (Exception e) {
             return ResponseEntity.badRequest().build();
