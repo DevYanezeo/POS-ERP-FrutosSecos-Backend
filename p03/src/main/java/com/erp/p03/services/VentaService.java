@@ -29,6 +29,13 @@ import com.erp.p03.repositories.DetalleVentaRepository;
 import com.erp.p03.repositories.PagoRepository;
 import com.erp.p03.controllers.dto.VentaWithHolidayDTO;
 import com.erp.p03.entities.FeriadoEntity;
+import com.erp.p03.controllers.dto.ProductSalesDTO;
+import java.sql.Timestamp;
+import java.time.temporal.WeekFields;
+import java.time.DayOfWeek;
+import java.time.temporal.TemporalAdjusters;
+import java.math.BigDecimal;
+import java.math.BigInteger;
 
 @Service
 public class VentaService {
@@ -494,7 +501,7 @@ public class VentaService {
 
     /**
      * Actualiza campos relevantes de un fiado (clienteId, fechaVencimientoPago, saldoPendiente, fiado)
-     * La fecha se recibe en formato dd/MM/yyyy (String). Si la cadena es null o vacía no se modifica.
+     * La fecha se recibe en formato dd/MM/AAAA (String). Si la cadena es null o vacía no se modifica.
      */
     @Transactional
     public VentaEntity actualizarFiado(Integer ventaId, FiadoUpdateRequest req) {
@@ -583,6 +590,7 @@ public class VentaService {
         List<VentaEntity> fiados = ventaRepository.findByFiadoTrue();
         java.util.List<VentaEntity> result = new java.util.ArrayList<>();
         for (VentaEntity v : fiados) {
+            // Filtrar por clienteId
             if (clienteId.equals(v.getClienteId())) {
                 if (pendientesOnly) {
                     if (v.getSaldoPendiente() != null && v.getSaldoPendiente() > 0) result.add(v);
@@ -590,6 +598,114 @@ public class VentaService {
             }
         }
         return result;
+    }
+
+    // -------------------- Reportes: productos mas vendidos --------------------
+
+    /**
+     * Metodo genérico que consulta la repo y mapea a DTOs.
+     */
+    public java.util.List<ProductSalesDTO> productosMasVendidosEntre(LocalDateTime start, LocalDateTime end, Integer limit) {
+        // Validar parámetros
+        if (start == null || end == null) throw new IllegalArgumentException("start y end son requeridos");
+        Timestamp tsStart = Timestamp.valueOf(start);
+        Timestamp tsEnd = Timestamp.valueOf(end);
+        // Consultar repo
+        java.util.List<Object[]> rows = detalleVentaRepository.findProductSalesBetweenDates(tsStart, tsEnd);
+        java.util.List<ProductSalesDTO> result = new java.util.ArrayList<>();
+        int count = 0;
+        // Mapear a DTOs
+        for (Object[] row : rows) {
+            if (limit != null && count >= limit) break;
+            ProductSalesDTO dto = new ProductSalesDTO();
+            Object o0 = row[0];
+            Object o1 = row[1];
+            Object o2 = row[2];
+            Object o3 = row[3];
+            Integer productoId = null;
+            // Determinar tipo de o0 y convertir a Integer
+            if (o0 instanceof BigInteger) productoId = ((BigInteger)o0).intValue();
+            else if (o0 instanceof Number) productoId = ((Number)o0).intValue();
+            dto.setProductoId(productoId);
+            dto.setNombre(o1 == null ? null : o1.toString());
+            Integer totalCantidad = null;
+            // Determinar tipo de o2 y convertir a Integer
+            if (o2 instanceof BigDecimal) totalCantidad = ((BigDecimal)o2).intValue();
+            else if (o2 instanceof BigInteger) totalCantidad = ((BigInteger)o2).intValue();
+            else if (o2 instanceof Number) totalCantidad = ((Number)o2).intValue();
+            dto.setTotalCantidad(totalCantidad == null ? 0 : totalCantidad);
+            Integer totalSubtotal = null;
+            // Determinar tipo de o3 y convertir a Integer
+            if (o3 instanceof BigDecimal) totalSubtotal = ((BigDecimal)o3).intValue();
+            else if (o3 instanceof BigInteger) totalSubtotal = ((BigInteger)o3).intValue();
+            else if (o3 instanceof Number) totalSubtotal = ((Number)o3).intValue();
+            dto.setTotalSubtotal(totalSubtotal == null ? 0 : totalSubtotal);
+            result.add(dto);
+            count++;
+        }
+        return result;
+    }
+
+    /**
+     * Productos mas vendidos en una semana.
+     * Comportamiento actualizado: si se proporciona `month` (1-12), entonces `week` se interpreta como
+     * el índice de semana dentro del mes (1 = días 1-7, 2 = días 8-14, 3 = días 15-21, 4 = días 22-28, 5 = días 29-fin).
+     * Si `month` es null, preservamos el comportamiento previo usando WeekFields.ISO (semana ISO del año).
+     */
+    public java.util.List<ProductSalesDTO> productosMasVendidosPorSemana(Integer year, Integer month, Integer week, Integer limit) {
+        java.time.LocalDate today = java.time.LocalDate.now();
+        // Si month es null, usamos semana ISO del año
+        if (month == null) {
+            WeekFields wf = WeekFields.ISO;
+            int targetYear = (year == null) ? today.get(wf.weekBasedYear()) : year;
+            int targetWeek = (week == null) ? today.get(wf.weekOfWeekBasedYear()) : week;
+
+            LocalDate firstDay = LocalDate.now()
+                    .with(wf.weekBasedYear(), targetYear)
+                    .with(wf.weekOfWeekBasedYear(), targetWeek)
+                    .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+            LocalDate lastDay = firstDay.plusDays(6);
+            LocalDateTime start = firstDay.atStartOfDay();
+            LocalDateTime end = lastDay.atTime(LocalTime.MAX);
+            return productosMasVendidosEntre(start, end, limit);
+        }
+        // Si month es proporcionado, interpretamos week como semana dentro del mes
+        else {
+            int y = (year == null) ? today.getYear() : year;
+            int m = month;
+            // Validar mes
+            if (m < 1 || m > 12) throw new IllegalArgumentException("month debe estar entre 1 y 12");
+            LocalDate firstOfMonth = LocalDate.of(y, m, 1);
+            LocalDate lastOfMonth = firstOfMonth.with(TemporalAdjusters.lastDayOfMonth());
+            int maxWeeks = (lastOfMonth.getDayOfMonth() + 6) / 7; // semanas completas en el mes
+            int wk = (week == null) ? 1 : week;
+            // Validar rango de semana dentro del mes
+            if (wk < 1 || wk > maxWeeks) throw new IllegalArgumentException("week dentro del mes fuera de rango (1.." + maxWeeks + ")");
+            int startDay = 1 + (wk - 1) * 7;
+            LocalDate startDate = LocalDate.of(y, m, startDay);
+            LocalDate endDate = startDate.plusDays(6);
+            // Ajustar endDate si excede fin de mes
+            if (endDate.isAfter(lastOfMonth)) endDate = lastOfMonth;
+            LocalDateTime start = startDate.atStartOfDay();
+            LocalDateTime end = endDate.atTime(LocalTime.MAX);
+            return productosMasVendidosEntre(start, end, limit);
+        }
+    }
+
+    /**
+     * Productos mas vendidos en un mes. Parámetros opcionales: year y month (1-12).
+     */
+    public java.util.List<ProductSalesDTO> productosMasVendidosPorMes(Integer year, Integer month, Integer limit) {
+        java.time.LocalDate today = java.time.LocalDate.now();
+        // Determinar año y mes
+        int y = (year == null) ? today.getYear() : year;
+        int m = (month == null) ? today.getMonthValue() : month;
+        // Validar mes
+        LocalDate first = LocalDate.of(y, m, 1);
+        LocalDate last = first.with(TemporalAdjusters.lastDayOfMonth());
+        LocalDateTime start = first.atStartOfDay();
+        LocalDateTime end = last.atTime(LocalTime.MAX);
+        return productosMasVendidosEntre(start, end, limit);
     }
 
 }
