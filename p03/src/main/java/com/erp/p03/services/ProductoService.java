@@ -177,12 +177,12 @@ public class ProductoService {
     // ======================== REPORTES / VISTAS =========================
 
     // Devuelve productos cuyo stock sea menor o igual a 5 (alerta de stock bajo)
-    public List<ProductoEntity> findProductosStockBajo() {
+    public List<ProductoEntity> findProductosStockBajo(Integer minStock) {
         return productoRepository.findAll().stream()
                 .filter(producto -> {
                     int stock = Optional.ofNullable(producto.getStock())
                             .orElse(stockDesdeLotes(producto));
-                    return stock <= 5;
+                    return stock <= minStock;
                 })
                 .toList();
     }

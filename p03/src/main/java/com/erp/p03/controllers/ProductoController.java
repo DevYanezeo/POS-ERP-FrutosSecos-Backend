@@ -134,10 +134,10 @@ public class ProductoController {
 
     // ====================== STOCK ======================
 
-    // Productos con stock bajo (<= 5)
-    @GetMapping("/stock-bajo")
-    public ResponseEntity<List<ProductoEntity>> getProductosStockBajo() {
-        List<ProductoEntity> productosStockBajo = productoService.findProductosStockBajo();
+    // Productos con stock bajo (<= X)
+    @GetMapping("/stock-bajo/{minStock}")
+    public ResponseEntity<List<ProductoEntity>> getProductosStockBajo(@PathVariable Integer minStock) {
+        List<ProductoEntity> productosStockBajo = productoService.findProductosStockBajo(minStock);
         return ResponseEntity.ok(productosStockBajo);
     }
 
