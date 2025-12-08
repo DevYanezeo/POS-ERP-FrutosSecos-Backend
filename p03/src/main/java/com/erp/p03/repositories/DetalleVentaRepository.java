@@ -40,4 +40,17 @@ public interface DetalleVentaRepository extends JpaRepository<DetalleVentaEntity
             "ORDER BY SUM(d.cantidad) ASC", nativeQuery = true)
     List<Object[]> findLeastProductSalesBetweenDates(@Param("start") Timestamp start, @Param("end") Timestamp end);
 
+    // Consulta para obtener margen (ingreso y costo histórico) por producto en un rango de fechas
+    // Usa costo histórico del detalle (d.costo_unitario) si existe, sino usa el costo del lote (l.costo).
+    @Query(value = "SELECT d.producto_id AS productoId, p.nombre AS nombre, SUM(d.cantidad) AS totalCantidad, SUM(d.subtotal) AS totalIngreso, " +
+            "SUM(d.cantidad * COALESCE(d.costo_unitario, l.costo, 0)) AS totalCosto " +
+            "FROM detalle_ventas d " +
+            "JOIN ventas v ON d.venta_id = v.id_venta " +
+            "JOIN productos p ON d.producto_id = p.id_producto " +
+            "LEFT JOIN lotes l ON d.id_lote = l.id_lote " +
+            "WHERE v.fecha BETWEEN :start AND :end " +
+            "GROUP BY d.producto_id, p.nombre " +
+            "ORDER BY SUM(d.subtotal) DESC", nativeQuery = true)
+    List<Object[]> findProductMarginBetweenDates(@Param("start") Timestamp start, @Param("end") Timestamp end);
+
 }

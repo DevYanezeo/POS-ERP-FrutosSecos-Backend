@@ -5,6 +5,7 @@ import org.springframework.http.ResponseEntity;
 
 import com.erp.p03.services.VentaService;
 import com.erp.p03.controllers.dto.ProductSalesDTO;
+import com.erp.p03.controllers.dto.ProductMarginDTO;
 
 import java.util.List;
 
@@ -77,6 +78,33 @@ public class ReporteController {
             @RequestParam(required = false) Integer month,
             @RequestParam(required = false) Integer limit) {
         List<ProductSalesDTO> list = ventaService.productosMenosVendidosPorMes(year, month, limit);
+        return ResponseEntity.ok(list);
+    }
+
+    // ================ endpoints para margen de ganancias ================
+
+    /**
+     * Margen por producto en una semana. Misma query y params que `/productos/semana`.
+     */
+    @GetMapping("/productos/margen/semana")
+    public ResponseEntity<List<ProductMarginDTO>> productosMargenPorSemana(
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Integer month,
+            @RequestParam(required = false) Integer week,
+            @RequestParam(required = false) Integer limit) {
+        List<ProductMarginDTO> list = ventaService.productosMargenPorSemana(year, month, week, limit);
+        return ResponseEntity.ok(list);
+    }
+
+    /**
+     * Margen por producto en un mes.
+     */
+    @GetMapping("/productos/margen/mes")
+    public ResponseEntity<List<ProductMarginDTO>> productosMargenPorMes(
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Integer month,
+            @RequestParam(required = false) Integer limit) {
+        List<ProductMarginDTO> list = ventaService.productosMargenPorMes(year, month, limit);
         return ResponseEntity.ok(list);
     }
 

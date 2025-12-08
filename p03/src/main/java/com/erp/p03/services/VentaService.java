@@ -189,63 +189,96 @@ public class VentaService {
         VentaEntity savedVenta = ventaRepository.save(venta);
 
         // 2) Crear Detalles y movimientos por cada detalle
-        List<DetalleVentaEntity> detalles = request.getDetalles().stream().map(d -> {
-            DetalleVentaEntity dv = new DetalleVentaEntity();
-            dv.setVentaId(savedVenta.getIdVenta());
-            dv.setProductoId(d.getProductoId());
-            dv.setCantidad(d.getCantidad());
-            dv.setPrecioUnitario(d.getPrecioUnitario());
-            dv.setSubtotal(d.getPrecioUnitario() * d.getCantidad());
-            // Si la venta no es fiado y tiene metodoPago, aplicarlo directamente al detalle
-            if (!Boolean.TRUE.equals(savedVenta.getFiado()) && savedVenta.getMetodoPago() != null) {
-                dv.setMetodoPago(savedVenta.getMetodoPago());
-            }
-            return dv;
-        }).toList();
+        // Ahora se manejan los lotes y se guarda idLote y costoUnitario en cada DetalleVentaEntity.
+        List<DetalleVentaEntity> detallesACrear = new java.util.ArrayList<>();
 
-        // Guardar detalles
-        detalleVentaRepository.saveAll(detalles);
+        for (DetalleVentaRequest dreq : request.getDetalles()) {
+            if (dreq == null) continue;
+            Integer pedidoCantidad = Optional.ofNullable(dreq.getCantidad()).orElse(0);
+            if (pedidoCantidad <= 0) continue;
 
-        // Para cada detalle: registrar movimiento SALIDA, actualizar lote y producto
-        for (int i = 0; i < detalles.size(); i++) {
-            DetalleVentaEntity dv = detalles.get(i);
-            DetalleVentaRequest dreq = request.getDetalles().get(i);
-
-            // Registrar movimiento stock SALIDA
-            com.erp.p03.controllers.dto.MovimientoStockRequest mr = new com.erp.p03.controllers.dto.MovimientoStockRequest();
-            mr.setProductoId(dv.getProductoId());
-            mr.setUsuarioId(request.getUsuarioId());
-            mr.setTipoMovimiento("SALIDA");
-            mr.setCantidad(dv.getCantidad());
-            movimientoStockService.registrarMovimiento(mr);
-
-            // Actualizar cantidad del lote
+            // Si se especifica idLote, consumir de ese lote en un solo detalle
             if (dreq.getIdLote() != null) {
-                // Restar la cantidad en el lote especificado
-                loteService.updateCantidadLote(dreq.getIdLote(),
-                        loteService.findById(dreq.getIdLote()).getCantidad() - dv.getCantidad());
+                LoteEntity lote = loteService.findById(dreq.getIdLote());
+                int disponible = Optional.ofNullable(lote.getCantidad()).orElse(0);
+                if (disponible < pedidoCantidad) {
+                    throw new RuntimeException("Stock insuficiente en el lote " + dreq.getIdLote());
+                }
+                DetalleVentaEntity dv = new DetalleVentaEntity();
+                dv.setVentaId(savedVenta.getIdVenta());
+                dv.setProductoId(dreq.getProductoId());
+                dv.setCantidad(pedidoCantidad);
+                dv.setPrecioUnitario(dreq.getPrecioUnitario());
+                dv.setSubtotal(Optional.ofNullable(dreq.getPrecioUnitario()).orElse(0) * pedidoCantidad);
+                if (!Boolean.TRUE.equals(savedVenta.getFiado()) && savedVenta.getMetodoPago() != null) {
+                    dv.setMetodoPago(savedVenta.getMetodoPago());
+                }
+                dv.setIdLote(dreq.getIdLote());
+                dv.setCostoUnitario(lote.getCosto());
+                detallesACrear.add(dv);
+
+                // Actualizar cantidad del lote
+                loteService.updateCantidadLote(dreq.getIdLote(), disponible - pedidoCantidad);
+
+                // Registrar movimiento para este lote
+                com.erp.p03.controllers.dto.MovimientoStockRequest mr = new com.erp.p03.controllers.dto.MovimientoStockRequest();
+                mr.setProductoId(dreq.getProductoId());
+                mr.setUsuarioId(request.getUsuarioId());
+                mr.setTipoMovimiento("SALIDA");
+                mr.setCantidad(pedidoCantidad);
+                movimientoStockService.registrarMovimiento(mr);
+
             } else {
-                // Si no hay lote especificado, buscar lotes por producto y restar en orden de vencimiento (FIFO por vencimiento)
-                // Usaremos los lotes del producto
-                ProductoEntity producto = productoService.findById(dv.getProductoId())
+                // No se especifica lote: consumir lotes disponibles en orden de vencimiento
+                ProductoEntity producto = productoService.findById(dreq.getProductoId())
                         .orElseThrow(() -> new RuntimeException("Producto no encontrado"));
-                int restante = dv.getCantidad();
+                int restante = pedidoCantidad;
                 for (LoteEntity lote : producto.getLotes()) {
                     if (!Boolean.TRUE.equals(lote.getEstado())) continue;
-                    int disponible = lote.getCantidad() == null ? 0 : lote.getCantidad();
+                    int disponible = Optional.ofNullable(lote.getCantidad()).orElse(0);
                     if (disponible <= 0) continue;
                     int aRestar = Math.min(disponible, restante);
+
+                    DetalleVentaEntity dv = new DetalleVentaEntity();
+                    dv.setVentaId(savedVenta.getIdVenta());
+                    dv.setProductoId(dreq.getProductoId());
+                    dv.setCantidad(aRestar);
+                    dv.setPrecioUnitario(dreq.getPrecioUnitario());
+                    dv.setSubtotal(Optional.ofNullable(dreq.getPrecioUnitario()).orElse(0) * aRestar);
+                    if (!Boolean.TRUE.equals(savedVenta.getFiado()) && savedVenta.getMetodoPago() != null) {
+                        dv.setMetodoPago(savedVenta.getMetodoPago());
+                    }
+                    dv.setIdLote(lote.getIdLote());
+                    dv.setCostoUnitario(lote.getCosto());
+                    detallesACrear.add(dv);
+
+                    // Actualizar lote
                     loteService.updateCantidadLote(lote.getIdLote(), disponible - aRestar);
+
+                    // Registrar movimiento por el lote
+                    com.erp.p03.controllers.dto.MovimientoStockRequest mr = new com.erp.p03.controllers.dto.MovimientoStockRequest();
+                    mr.setProductoId(dreq.getProductoId());
+                    mr.setUsuarioId(request.getUsuarioId());
+                    mr.setTipoMovimiento("SALIDA");
+                    mr.setCantidad(aRestar);
+                    movimientoStockService.registrarMovimiento(mr);
+
                     restante -= aRestar;
                     if (restante <= 0) break;
                 }
-                if (restante > 0) throw new RuntimeException("Stock insuficiente para el producto " + dv.getProductoId());
+                if (restante > 0) throw new RuntimeException("Stock insuficiente para el producto " + dreq.getProductoId());
             }
+        }
 
-            // Recalcular stock total del producto (ya lo hace loteService al actualizar lote en muchos casos, pero hacemos una sincronización final)
-            ProductoEntity prod = productoService.findById(dv.getProductoId())
-                    .orElseThrow(() -> new RuntimeException("Producto no encontrado"));
-            // productoService.quitarStock ya actualiza stock desde lotes internamente, pero para seguridad:
+        // Guardar todos los detalles creados
+        detalleVentaRepository.saveAll(detallesACrear);
+
+        // Recalcular stock total de cada producto afectado y persistir
+        // Para simplicidad, recalculamos por cada detalle creado
+        java.util.Set<Integer> productosAfectados = new java.util.HashSet<>();
+        for (DetalleVentaEntity dv : detallesACrear) productosAfectados.add(dv.getProductoId());
+        for (Integer pid : productosAfectados) {
+            ProductoEntity prod = productoService.findById(pid).orElseThrow(() -> new RuntimeException("Producto no encontrado"));
             int totalStock = prod.getLotes().stream()
                     .filter(l -> Boolean.TRUE.equals(l.getEstado()) && l.getCantidad() != null)
                     .mapToInt(LoteEntity::getCantidad)
@@ -825,6 +858,145 @@ public class VentaService {
         LocalDateTime start = first.atStartOfDay();
         LocalDateTime end = last.atTime(LocalTime.MAX);
         return productosMenosVendidosEntre(start, end, limit);
+    }
+
+    /**
+     * Calcula margen por producto entre dos instantes: usa la consulta nativa que suma ingreso y costo histórico y mapea a DTOs con calculos adicionales.
+     */
+    public java.util.List<com.erp.p03.controllers.dto.ProductMarginDTO> productosMargenEntre(LocalDateTime start, LocalDateTime end, Integer limit) {
+        if (start == null || end == null) throw new IllegalArgumentException("start y end son requeridos");
+        // Convertir a Timestamp
+        Timestamp tsStart = Timestamp.valueOf(start);
+        Timestamp tsEnd = Timestamp.valueOf(end);
+        // Consultar repo
+        java.util.List<Object[]> rows = detalleVentaRepository.findProductMarginBetweenDates(tsStart, tsEnd);
+        java.util.List<com.erp.p03.controllers.dto.ProductMarginDTO> result = new java.util.ArrayList<>();
+        int count = 0;
+        // Mapear a DTOs
+        for (Object[] row : rows) {
+            if (limit != null && count >= limit) break;
+            com.erp.p03.controllers.dto.ProductMarginDTO dto = new com.erp.p03.controllers.dto.ProductMarginDTO();
+            Object o0 = row[0]; // productoId
+            Object o1 = row[1]; // nombre
+            Object o2 = row[2]; // totalCantidad
+            Object o3 = row[3]; // totalIngreso
+            Object o4 = row[4]; // totalCosto
+
+            Integer productoId = null;
+            // Determinar tipo de o0 y convertir a Integer
+            if (o0 instanceof java.math.BigInteger) productoId = ((java.math.BigInteger)o0).intValue();
+            else if (o0 instanceof Number) productoId = ((Number)o0).intValue();
+            dto.setProductoId(productoId);
+            dto.setNombre(o1 == null ? null : o1.toString());
+
+            Integer totalCantidad = null;
+            // Determinar tipo de o2 y convertir a Integer
+            if (o2 instanceof java.math.BigDecimal) totalCantidad = ((java.math.BigDecimal)o2).intValue();
+            else if (o2 instanceof java.math.BigInteger) totalCantidad = ((java.math.BigInteger)o2).intValue();
+            else if (o2 instanceof Number) totalCantidad = ((Number)o2).intValue();
+            dto.setTotalCantidad(totalCantidad == null ? 0 : totalCantidad);
+
+            Integer totalIngreso = null;
+            // Determinar tipo de o3 y convertir a Integer
+            if (o3 instanceof java.math.BigDecimal) totalIngreso = ((java.math.BigDecimal)o3).intValue();
+            else if (o3 instanceof java.math.BigInteger) totalIngreso = ((java.math.BigInteger)o3).intValue();
+            else if (o3 instanceof Number) totalIngreso = ((Number)o3).intValue();
+            dto.setTotalIngreso(totalIngreso == null ? 0 : totalIngreso);
+
+            Integer totalCosto = null;
+            // Determinar tipo de o4 y convertir a Integer
+            if (o4 instanceof java.math.BigDecimal) totalCosto = ((java.math.BigDecimal)o4).intValue();
+            else if (o4 instanceof java.math.BigInteger) totalCosto = ((java.math.BigInteger)o4).intValue();
+            else if (o4 instanceof Number) totalCosto = ((Number)o4).intValue();
+            dto.setTotalCosto(totalCosto == null ? 0 : totalCosto);
+
+            // precio unitario actual (desde producto si existe)
+            Integer precioUnitario = null;
+            if (dto.getProductoId() != null) {
+                java.util.Optional<com.erp.p03.entities.ProductoEntity> pOpt = productoService.findById(dto.getProductoId());
+                if (pOpt.isPresent()) precioUnitario = pOpt.get().getPrecio();
+            }
+            dto.setPrecioUnitario(precioUnitario);
+
+            // calculados
+            dto.setMargen(dto.getTotalIngreso() - dto.getTotalCosto());
+            if (dto.getPrecioUnitario() != null && dto.getPrecioUnitario() > 0) {
+                dto.setIngresoSobrePrecio(dto.getTotalIngreso() / (double) dto.getPrecioUnitario());
+            } else {
+                dto.setIngresoSobrePrecio(null);
+            }
+            if (dto.getTotalIngreso() != null && dto.getTotalIngreso() > 0) {
+                dto.setMargenSobreIngreso(dto.getMargen() / (double) dto.getTotalIngreso());
+            } else {
+                dto.setMargenSobreIngreso(null);
+            }
+
+            // NUEVOS: ingreso por unidad (promedio real) y relación respecto al precio actual
+            if (dto.getTotalCantidad() != null && dto.getTotalCantidad() > 0) {
+                dto.setIngresoPorUnidad(dto.getTotalIngreso() / (double) dto.getTotalCantidad());
+                if (dto.getPrecioUnitario() != null && dto.getPrecioUnitario() > 0) {
+                    dto.setIngresoSobrePrecioRelativo(dto.getIngresoPorUnidad() / (double) dto.getPrecioUnitario());
+                } else {
+                    dto.setIngresoSobrePrecioRelativo(null);
+                }
+            } else {
+                dto.setIngresoPorUnidad(null);
+                dto.setIngresoSobrePrecioRelativo(null);
+            }
+
+            result.add(dto);
+            count++;
+        }
+        return result;
+    }
+
+    // Productos margen en una semana
+    public java.util.List<com.erp.p03.controllers.dto.ProductMarginDTO> productosMargenPorSemana(Integer year, Integer month, Integer week, Integer limit) {
+        java.time.LocalDate today = java.time.LocalDate.now();
+        if (month == null) {
+            WeekFields wf = WeekFields.ISO;
+            int targetYear = (year == null) ? today.get(wf.weekBasedYear()) : year;
+            int targetWeek = (week == null) ? today.get(wf.weekOfWeekBasedYear()) : week;
+            // Calcular primer y último día de la semana
+            LocalDate firstDay = LocalDate.now()
+                    .with(wf.weekBasedYear(), targetYear)
+                    .with(wf.weekOfWeekBasedYear(), targetWeek)
+                    .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+            LocalDate lastDay = firstDay.plusDays(6);
+            LocalDateTime start = firstDay.atStartOfDay();
+            LocalDateTime end = lastDay.atTime(LocalTime.MAX);
+            return productosMargenEntre(start, end, limit);
+        }
+        // Si month es proporcionado, interpretamos week como semana dentro del mes
+        else {
+            int y = (year == null) ? today.getYear() : year;
+            int m = month;
+            if (m < 1 || m > 12) throw new IllegalArgumentException("month debe estar entre 1 y 12");
+            LocalDate firstOfMonth = LocalDate.of(y, m, 1);
+            LocalDate lastOfMonth = firstOfMonth.with(TemporalAdjusters.lastDayOfMonth());
+            int maxWeeks = (lastOfMonth.getDayOfMonth() + 6) / 7;
+            int wk = (week == null) ? 1 : week;
+            if (wk < 1 || wk > maxWeeks) throw new IllegalArgumentException("week dentro del mes fuera de rango (1.." + maxWeeks + ")");
+            int startDay = 1 + (wk - 1) * 7;
+            LocalDate startDate = LocalDate.of(y, m, startDay);
+            LocalDate endDate = startDate.plusDays(6);
+            if (endDate.isAfter(lastOfMonth)) endDate = lastOfMonth;
+            LocalDateTime start = startDate.atStartOfDay();
+            LocalDateTime end = endDate.atTime(LocalTime.MAX);
+            return productosMargenEntre(start, end, limit);
+        }
+    }
+
+    // Productos margen en un mes
+    public java.util.List<com.erp.p03.controllers.dto.ProductMarginDTO> productosMargenPorMes(Integer year, Integer month, Integer limit) {
+        java.time.LocalDate today = java.time.LocalDate.now();
+        int y = (year == null) ? today.getYear() : year;
+        int m = (month == null) ? today.getMonthValue() : month;
+        LocalDate first = LocalDate.of(y, m, 1);
+        LocalDate last = first.with(TemporalAdjusters.lastDayOfMonth());
+        LocalDateTime start = first.atStartOfDay();
+        LocalDateTime end = last.atTime(LocalTime.MAX);
+        return productosMargenEntre(start, end, limit);
     }
 
 }

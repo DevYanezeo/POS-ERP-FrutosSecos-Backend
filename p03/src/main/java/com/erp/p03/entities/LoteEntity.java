@@ -38,4 +38,8 @@ public class LoteEntity {
 
     @Column(name = "estado")
     private Boolean estado; // activo o inactivo
+
+    // Nuevo: costo unitario del lote (en pesos chilenos CLP).
+    @Column(name = "costo")
+    private Integer costo;
 }
