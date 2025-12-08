@@ -6,6 +6,7 @@ import org.springframework.http.ResponseEntity;
 import com.erp.p03.services.VentaService;
 import com.erp.p03.controllers.dto.ProductSalesDTO;
 import com.erp.p03.controllers.dto.ProductMarginDTO;
+import com.erp.p03.controllers.dto.ProductLossDTO;
 
 import java.util.List;
 
@@ -105,6 +106,33 @@ public class ReporteController {
             @RequestParam(required = false) Integer month,
             @RequestParam(required = false) Integer limit) {
         List<ProductMarginDTO> list = ventaService.productosMargenPorMes(year, month, limit);
+        return ResponseEntity.ok(list);
+    }
+
+    // ================ endpoints para pérdidas por lotes vencidos ================
+
+    /**
+     * Pérdidas por productos (lotes vencidos) en una semana.
+     */
+    @GetMapping("/productos/perdidas/semana")
+    public ResponseEntity<List<ProductLossDTO>> productosPerdidasPorSemana(
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Integer month,
+            @RequestParam(required = false) Integer week,
+            @RequestParam(required = false) Integer limit) {
+        List<ProductLossDTO> list = ventaService.productosPerdidasPorSemana(year, month, week, limit);
+        return ResponseEntity.ok(list);
+    }
+
+    /**
+     * Pérdidas por productos (lotes vencidos) en un mes.
+     */
+    @GetMapping("/productos/perdidas/mes")
+    public ResponseEntity<List<ProductLossDTO>> productosPerdidasPorMes(
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Integer month,
+            @RequestParam(required = false) Integer limit) {
+        List<ProductLossDTO> list = ventaService.productosPerdidasPorMes(year, month, limit);
         return ResponseEntity.ok(list);
     }
 

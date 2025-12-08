@@ -128,4 +128,9 @@ public class LoteService {
         if (lote == null) throw new IllegalArgumentException("Lote no encontrado por codigo");
         return lote;
     }
+
+    // Buscar lotes por fecha de vencimiento entre dos fechas (inclusive)
+    public List<LoteEntity> findLotesByFechaVencimientoBetween(LocalDate desde, LocalDate hasta) {
+        return loteRepository.findByFechaVencimientoBetween(desde, hasta);
+    }
 }
