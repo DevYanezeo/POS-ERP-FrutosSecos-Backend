@@ -735,4 +735,96 @@ public class VentaService {
         return productosMasVendidosEntre(start, end, limit);
     }
 
+    // -------------------- Reportes: productos menos vendidos --------------------
+
+    /**
+     * Versión genérica para obtener productos menos vendidos entre dos instantes.
+     * Reusa la consulta nativa creada en DetalleVentaRepository (orden ASC por cantidad).
+     */
+    public java.util.List<ProductSalesDTO> productosMenosVendidosEntre(LocalDateTime start, LocalDateTime end, Integer limit) {
+        if (start == null || end == null) throw new IllegalArgumentException("start y end son requeridos");
+        Timestamp tsStart = Timestamp.valueOf(start);
+        Timestamp tsEnd = Timestamp.valueOf(end);
+        java.util.List<Object[]> rows = detalleVentaRepository.findLeastProductSalesBetweenDates(tsStart, tsEnd);
+        java.util.List<ProductSalesDTO> result = new java.util.ArrayList<>();
+        int count = 0;
+        for (Object[] row : rows) {
+            if (limit != null && count >= limit) break;
+            ProductSalesDTO dto = new ProductSalesDTO();
+            Object o0 = row[0];
+            Object o1 = row[1];
+            Object o2 = row[2];
+            Object o3 = row[3];
+            Integer productoId = null;
+            if (o0 instanceof BigInteger) productoId = ((BigInteger)o0).intValue();
+            else if (o0 instanceof Number) productoId = ((Number)o0).intValue();
+            dto.setProductoId(productoId);
+            dto.setNombre(o1 == null ? null : o1.toString());
+            Integer totalCantidad = null;
+            if (o2 instanceof BigDecimal) totalCantidad = ((BigDecimal)o2).intValue();
+            else if (o2 instanceof BigInteger) totalCantidad = ((BigInteger)o2).intValue();
+            else if (o2 instanceof Number) totalCantidad = ((Number)o2).intValue();
+            dto.setTotalCantidad(totalCantidad == null ? 0 : totalCantidad);
+            Integer totalSubtotal = null;
+            if (o3 instanceof BigDecimal) totalSubtotal = ((BigDecimal)o3).intValue();
+            else if (o3 instanceof BigInteger) totalSubtotal = ((BigInteger)o3).intValue();
+            else if (o3 instanceof Number) totalSubtotal = ((Number)o3).intValue();
+            dto.setTotalSubtotal(totalSubtotal == null ? 0 : totalSubtotal);
+            result.add(dto);
+            count++;
+        }
+        return result;
+    }
+
+    /**
+     * Productos menos vendidos en una semana. Misma semántica que `productosMasVendidosPorSemana`.
+     */
+    public java.util.List<ProductSalesDTO> productosMenosVendidosPorSemana(Integer year, Integer month, Integer week, Integer limit) {
+        java.time.LocalDate today = java.time.LocalDate.now();
+        if (month == null) {
+            WeekFields wf = WeekFields.ISO;
+            int targetYear = (year == null) ? today.get(wf.weekBasedYear()) : year;
+            int targetWeek = (week == null) ? today.get(wf.weekOfWeekBasedYear()) : week;
+
+            LocalDate firstDay = LocalDate.now()
+                    .with(wf.weekBasedYear(), targetYear)
+                    .with(wf.weekOfWeekBasedYear(), targetWeek)
+                    .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+            LocalDate lastDay = firstDay.plusDays(6);
+            LocalDateTime start = firstDay.atStartOfDay();
+            LocalDateTime end = lastDay.atTime(LocalTime.MAX);
+            return productosMenosVendidosEntre(start, end, limit);
+        } else {
+            int y = (year == null) ? today.getYear() : year;
+            int m = month;
+            if (m < 1 || m > 12) throw new IllegalArgumentException("month debe estar entre 1 y 12");
+            LocalDate firstOfMonth = LocalDate.of(y, m, 1);
+            LocalDate lastOfMonth = firstOfMonth.with(TemporalAdjusters.lastDayOfMonth());
+            int maxWeeks = (lastOfMonth.getDayOfMonth() + 6) / 7;
+            int wk = (week == null) ? 1 : week;
+            if (wk < 1 || wk > maxWeeks) throw new IllegalArgumentException("week dentro del mes fuera de rango (1.." + maxWeeks + ")");
+            int startDay = 1 + (wk - 1) * 7;
+            LocalDate startDate = LocalDate.of(y, m, startDay);
+            LocalDate endDate = startDate.plusDays(6);
+            if (endDate.isAfter(lastOfMonth)) endDate = lastOfMonth;
+            LocalDateTime start = startDate.atStartOfDay();
+            LocalDateTime end = endDate.atTime(LocalTime.MAX);
+            return productosMenosVendidosEntre(start, end, limit);
+        }
+    }
+
+    /**
+     * Productos menos vendidos en un mes.
+     */
+    public java.util.List<ProductSalesDTO> productosMenosVendidosPorMes(Integer year, Integer month, Integer limit) {
+        java.time.LocalDate today = java.time.LocalDate.now();
+        int y = (year == null) ? today.getYear() : year;
+        int m = (month == null) ? today.getMonthValue() : month;
+        LocalDate first = LocalDate.of(y, m, 1);
+        LocalDate last = first.with(TemporalAdjusters.lastDayOfMonth());
+        LocalDateTime start = first.atStartOfDay();
+        LocalDateTime end = last.atTime(LocalTime.MAX);
+        return productosMenosVendidosEntre(start, end, limit);
+    }
+
 }

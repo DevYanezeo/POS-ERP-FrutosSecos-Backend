@@ -23,15 +23,15 @@ public class ReporteController {
      * Productos más vendidos en una semana.
      * Query params opcionales:
      * - year: año (ej. 2025)
-     * - week: semana del año (1-52)
-     * - month: mes (1-12)
+     * - month: mes (1-12) — si se pasa, `week` se interpreta como índice dentro del mes
+     * - week: semana del año (1-52) o índice dentro del mes
      * - limit: cantidad máxima de resultados
      */
     @GetMapping("/productos/semana")
     public ResponseEntity<List<ProductSalesDTO>> productosMasVendidosPorSemana(
             @RequestParam(required = false) Integer year,
-            @RequestParam(required = false) Integer week,
             @RequestParam(required = false) Integer month,
+            @RequestParam(required = false) Integer week,
             @RequestParam(required = false) Integer limit) {
         List<ProductSalesDTO> list = ventaService.productosMasVendidosPorSemana(year, month, week, limit);
         return ResponseEntity.ok(list);
@@ -50,6 +50,33 @@ public class ReporteController {
             @RequestParam(required = false) Integer month,
             @RequestParam(required = false) Integer limit) {
         List<ProductSalesDTO> list = ventaService.productosMasVendidosPorMes(year, month, limit);
+        return ResponseEntity.ok(list);
+    }
+
+    // ================= endpoints para productos menos vendidos =================
+
+    /**
+     * Productos menos vendidos en una semana. Misma query y params que `/productos/semana`.
+     */
+    @GetMapping("/productos/semana/menos")
+    public ResponseEntity<List<ProductSalesDTO>> productosMenosVendidosPorSemana(
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Integer month,
+            @RequestParam(required = false) Integer week,
+            @RequestParam(required = false) Integer limit) {
+        List<ProductSalesDTO> list = ventaService.productosMenosVendidosPorSemana(year, month, week, limit);
+        return ResponseEntity.ok(list);
+    }
+
+    /**
+     * Productos menos vendidos en un mes. Misma query y params que `/productos/mes`.
+     */
+    @GetMapping("/productos/mes/menos")
+    public ResponseEntity<List<ProductSalesDTO>> productosMenosVendidosPorMes(
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Integer month,
+            @RequestParam(required = false) Integer limit) {
+        List<ProductSalesDTO> list = ventaService.productosMenosVendidosPorMes(year, month, limit);
         return ResponseEntity.ok(list);
     }
 
