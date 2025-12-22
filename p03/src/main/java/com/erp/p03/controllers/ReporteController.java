@@ -7,6 +7,7 @@ import com.erp.p03.services.VentaService;
 import com.erp.p03.controllers.dto.ProductSalesDTO;
 import com.erp.p03.controllers.dto.ProductMarginDTO;
 import com.erp.p03.controllers.dto.ProductLossDTO;
+import com.erp.p03.controllers.dto.FinanceSummaryDTO;
 
 import java.util.List;
 
@@ -25,7 +26,8 @@ public class ReporteController {
      * Productos más vendidos en una semana.
      * Query params opcionales:
      * - year: año (ej. 2025)
-     * - month: mes (1-12) — si se pasa, `week` se interpreta como índice dentro del mes
+     * - month: mes (1-12) — si se pasa, `week` se interpreta como índice dentro del
+     * mes
      * - week: semana del año (1-52) o índice dentro del mes
      * - limit: cantidad máxima de resultados
      */
@@ -58,7 +60,8 @@ public class ReporteController {
     // ================= endpoints para productos menos vendidos =================
 
     /**
-     * Productos menos vendidos en una semana. Misma query y params que `/productos/semana`.
+     * Productos menos vendidos en una semana. Misma query y params que
+     * `/productos/semana`.
      */
     @GetMapping("/productos/semana/menos")
     public ResponseEntity<List<ProductSalesDTO>> productosMenosVendidosPorSemana(
@@ -71,7 +74,8 @@ public class ReporteController {
     }
 
     /**
-     * Productos menos vendidos en un mes. Misma query y params que `/productos/mes`.
+     * Productos menos vendidos en un mes. Misma query y params que
+     * `/productos/mes`.
      */
     @GetMapping("/productos/mes/menos")
     public ResponseEntity<List<ProductSalesDTO>> productosMenosVendidosPorMes(
@@ -85,7 +89,8 @@ public class ReporteController {
     // ================ endpoints para margen de ganancias ================
 
     /**
-     * Margen por producto en una semana. Misma query y params que `/productos/semana`.
+     * Margen por producto en una semana. Misma query y params que
+     * `/productos/semana`.
      */
     @GetMapping("/productos/margen/semana")
     public ResponseEntity<List<ProductMarginDTO>> productosMargenPorSemana(
@@ -136,4 +141,71 @@ public class ReporteController {
         return ResponseEntity.ok(list);
     }
 
+    // ================= endpoints para reportes anuales =================
+
+    @GetMapping("/productos/anio")
+    public ResponseEntity<List<ProductSalesDTO>> productosMasVendidosPorAnio(
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Integer limit) {
+        List<ProductSalesDTO> list = ventaService.productosMasVendidosPorAnio(year, limit);
+        return ResponseEntity.ok(list);
+    }
+
+    @GetMapping("/productos/anio/menos")
+    public ResponseEntity<List<ProductSalesDTO>> productosMenosVendidosPorAnio(
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Integer limit) {
+        List<ProductSalesDTO> list = ventaService.productosMenosVendidosPorAnio(year, limit);
+        return ResponseEntity.ok(list);
+    }
+
+    @GetMapping("/productos/margen/anio")
+    public ResponseEntity<List<ProductMarginDTO>> productosMargenPorAnio(
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Integer limit) {
+        List<ProductMarginDTO> list = ventaService.productosMargenPorAnio(year, limit);
+        return ResponseEntity.ok(list);
+    }
+
+    @GetMapping("/productos/perdidas/anio")
+    public ResponseEntity<List<ProductLossDTO>> productosPerdidasPorAnio(
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Integer limit) {
+        List<ProductLossDTO> list = ventaService.productosPerdidasPorAnio(year, limit);
+        return ResponseEntity.ok(list);
+    }
+
+    /**
+     * Resumen Financiero Completo (Ingresos vs Costos vs Gastos)
+     */
+    @GetMapping("/finanzas/resumen/{periodo}")
+    public ResponseEntity<FinanceSummaryDTO> getResumenFinanciero(@PathVariable String periodo) {
+        java.time.LocalDateTime start;
+        java.time.LocalDateTime end;
+
+        java.time.LocalDate today = java.time.LocalDate.now();
+
+        if ("anio".equalsIgnoreCase(periodo) || "ano".equalsIgnoreCase(periodo)) {
+            java.time.LocalDate first = today.with(java.time.temporal.TemporalAdjusters.firstDayOfYear());
+            java.time.LocalDate last = today.with(java.time.temporal.TemporalAdjusters.lastDayOfYear());
+            start = first.atStartOfDay();
+            end = last.atTime(java.time.LocalTime.MAX);
+        } else if ("mes".equalsIgnoreCase(periodo)) {
+            java.time.LocalDate first = today.with(java.time.temporal.TemporalAdjusters.firstDayOfMonth());
+            java.time.LocalDate last = today.with(java.time.temporal.TemporalAdjusters.lastDayOfMonth());
+            start = first.atStartOfDay();
+            end = last.atTime(java.time.LocalTime.MAX);
+        } else {
+            // Default: Semana actual
+            java.time.LocalDate first = today
+                    .with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY));
+            // Asegurar que cubre hasta el domingo
+            java.time.LocalDate last = first.plusDays(6);
+            start = first.atStartOfDay();
+            end = last.atTime(java.time.LocalTime.MAX);
+        }
+
+        FinanceSummaryDTO summary = ventaService.getFinanceSummary(start, end);
+        return ResponseEntity.ok(summary);
+    }
 }
