@@ -3,10 +3,7 @@ package com.erp.p03.controllers;
 import java.util.List;
 
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import com.erp.p03.entities.CategoriaEntity;
 import com.erp.p03.services.CategoriaService;
@@ -28,4 +25,12 @@ public class CategoriaController {
         List<CategoriaEntity> categorias = categoriaService.findAll();
         return ResponseEntity.ok(categorias);
     }
+    // crear nueva categoria
+    @PostMapping("/crear")
+    public ResponseEntity<CategoriaEntity> crearCategoria(@RequestBody CategoriaEntity categoria) {
+        CategoriaEntity nuevaCategoria = categoriaService.crearCategoria(categoria);
+        return ResponseEntity.ok(nuevaCategoria);
+    }
+
+
 }

@@ -18,4 +18,9 @@ public class CategoriaService {
     public List<CategoriaEntity> findAll() {
         return categoriaRepository.findAll();
     }
+
+    // crear nueva categoria
+    public CategoriaEntity crearCategoria(CategoriaEntity categoria) {
+        return categoriaRepository.save(categoria);
+    }
 }

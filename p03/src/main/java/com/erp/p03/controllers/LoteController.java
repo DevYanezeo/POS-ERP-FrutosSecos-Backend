@@ -123,4 +123,10 @@ public class LoteController {
             return ResponseEntity.notFound().build();
         }
     }
+    @GetMapping("/all-codigos")
+    public ResponseEntity<List<String>> obtenerTodosCodigos() {
+        List<String> codigos = loteService.findAllCodigosLote();
+        return ResponseEntity.ok(codigos);
+    }
+
 }
