@@ -80,7 +80,7 @@ public class ProductoController {
             return ResponseEntity.notFound().build();
         }
         try {
-            ProductoEntity updatedProducto = productoService.parcialSave(id,productoUpdated);
+            ProductoEntity updatedProducto = productoService.parcialSave(id, productoUpdated);
             return ResponseEntity.ok(updatedProducto);
         } catch (Exception e) {
             return ResponseEntity.badRequest().build();
@@ -89,15 +89,25 @@ public class ProductoController {
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Integer id) {
-        if (!productoService.existsById(id)) {
-            return ResponseEntity.notFound().build();
-        }
-        try {
-            productoService.deleteById(id);
-            return ResponseEntity.ok().build();
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().build();
-        }
+        return productoService.findById(id).map(producto -> {
+            try {
+                // Eliminar imagen de GCS si existe
+                if (producto.getImagen() != null && !producto.getImagen().isEmpty()) {
+                    try {
+                        String nombreArchivo = producto.getImagen()
+                                .substring(producto.getImagen().lastIndexOf("/") + 1);
+                        fileStorageService.eliminarImagen(nombreArchivo);
+                    } catch (Exception e) {
+                        System.err.println("Error eliminando imagen de GCS: " + e.getMessage());
+                    }
+                }
+
+                productoService.deleteById(id);
+                return ResponseEntity.ok().<Void>build();
+            } catch (Exception e) {
+                return ResponseEntity.badRequest().<Void>build();
+            }
+        }).orElse(ResponseEntity.notFound().build());
     }
 
     // ====================== FILTROS ======================
@@ -218,8 +228,8 @@ public class ProductoController {
     @PostMapping("/upload-image")
     public ResponseEntity<?> uploadImage(@RequestParam("file") MultipartFile file) {
         try {
-            String nombreArchivo = fileStorageService.guardarImagen(file);
-            String imageUrl = "/uploads/productos/" + nombreArchivo;
+            String imageUrl = fileStorageService.guardarImagen(file);
+            String nombreArchivo = imageUrl.substring(imageUrl.lastIndexOf("/") + 1);
 
             Map<String, String> response = new HashMap<>();
             response.put("fileName", nombreArchivo);
@@ -252,8 +262,8 @@ public class ProductoController {
                 }
             }
 
-            String nombreArchivo = fileStorageService.guardarImagen(file);
-            String imageUrl = "/uploads/productos/" + nombreArchivo;
+            String imageUrl = fileStorageService.guardarImagen(file);
+            // String imageUrl = "/uploads/productos/" + nombreArchivo;
 
             producto.setImagen(imageUrl);
             ProductoEntity updatedProducto = productoService.save(producto);
