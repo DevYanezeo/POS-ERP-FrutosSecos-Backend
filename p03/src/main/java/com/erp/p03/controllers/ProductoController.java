@@ -1,19 +1,14 @@
 package com.erp.p03.controllers;
 
 import java.math.BigDecimal;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import com.erp.p03.controllers.dto.ParcialDTO;
 import com.erp.p03.controllers.dto.ProductoConCategoriaDTO;
 import com.erp.p03.entities.ProductoEntity;
-import com.erp.p03.services.FileStorageService;
 import com.erp.p03.services.ProductoService;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("api/productos")
@@ -21,11 +16,9 @@ import org.springframework.web.multipart.MultipartFile;
 public class ProductoController {
 
     private final ProductoService productoService;
-    private final FileStorageService fileStorageService;
 
-    public ProductoController(ProductoService productoService, FileStorageService fileStorageService) {
+    public ProductoController(ProductoService productoService) {
         this.productoService = productoService;
-        this.fileStorageService = fileStorageService;
     }
 
     // ====================== CRUD BÁSICO ======================
@@ -89,25 +82,15 @@ public class ProductoController {
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Integer id) {
-        return productoService.findById(id).map(producto -> {
-            try {
-                // Eliminar imagen de GCS si existe
-                if (producto.getImagen() != null && !producto.getImagen().isEmpty()) {
-                    try {
-                        String nombreArchivo = producto.getImagen()
-                                .substring(producto.getImagen().lastIndexOf("/") + 1);
-                        fileStorageService.eliminarImagen(nombreArchivo);
-                    } catch (Exception e) {
-                        System.err.println("Error eliminando imagen de GCS: " + e.getMessage());
-                    }
-                }
-
-                productoService.deleteById(id);
-                return ResponseEntity.ok().<Void>build();
-            } catch (Exception e) {
-                return ResponseEntity.badRequest().<Void>build();
-            }
-        }).orElse(ResponseEntity.notFound().build());
+        if (!productoService.existsById(id)) {
+            return ResponseEntity.notFound().build();
+        }
+        try {
+            productoService.deleteById(id);
+            return ResponseEntity.ok().build();
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().build();
+        }
     }
 
     // ====================== FILTROS ======================
@@ -223,60 +206,4 @@ public class ProductoController {
         return ResponseEntity.ok(productos);
     }
 
-    // ====================== IMÁGENES ======================
-
-    @PostMapping("/upload-image")
-    public ResponseEntity<?> uploadImage(@RequestParam("file") MultipartFile file) {
-        try {
-            String imageUrl = fileStorageService.guardarImagen(file);
-            String nombreArchivo = imageUrl.substring(imageUrl.lastIndexOf("/") + 1);
-
-            Map<String, String> response = new HashMap<>();
-            response.put("fileName", nombreArchivo);
-            response.put("imageUrl", imageUrl);
-            response.put("message", "Imagen subida exitosamente");
-
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            Map<String, String> error = new HashMap<>();
-            error.put("error", e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
-        }
-    }
-
-    @PutMapping("/{id}/imagen")
-    public ResponseEntity<?> updateProductoImagen(
-            @PathVariable Integer id,
-            @RequestParam("file") MultipartFile file) {
-        try {
-            ProductoEntity producto = productoService.findById(id)
-                    .orElseThrow(() -> new RuntimeException("Producto no encontrado"));
-
-            if (producto.getImagen() != null && !producto.getImagen().isEmpty()) {
-                try {
-                    String oldFileName = producto.getImagen()
-                            .substring(producto.getImagen().lastIndexOf("/") + 1);
-                    fileStorageService.eliminarImagen(oldFileName);
-                } catch (Exception e) {
-                    System.err.println("No se pudo eliminar la imagen anterior: " + e.getMessage());
-                }
-            }
-
-            String imageUrl = fileStorageService.guardarImagen(file);
-            // String imageUrl = "/uploads/productos/" + nombreArchivo;
-
-            producto.setImagen(imageUrl);
-            ProductoEntity updatedProducto = productoService.save(producto);
-
-            return ResponseEntity.ok(updatedProducto);
-        } catch (RuntimeException e) {
-            Map<String, String> error = new HashMap<>();
-            error.put("error", e.getMessage());
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
-        } catch (Exception e) {
-            Map<String, String> error = new HashMap<>();
-            error.put("error", e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
-        }
-    }
 }
