@@ -5,6 +5,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.erp.p03.controllers.dto.ParcialDTO;
 import com.erp.p03.controllers.dto.ProductoConCategoriaDTO;
 import com.erp.p03.entities.ProductoEntity;
 import com.erp.p03.services.FileStorageService;
@@ -72,17 +73,41 @@ public class ProductoController {
         }
     }
 
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Integer id) {
+    // update parcial (patch) para modificar solo el estado
+    @PutMapping("/{id}/parcial")
+    public ResponseEntity<ProductoEntity> update(@PathVariable Integer id, @RequestBody ParcialDTO productoUpdated) {
         if (!productoService.existsById(id)) {
             return ResponseEntity.notFound().build();
         }
         try {
-            productoService.deleteById(id);
-            return ResponseEntity.ok().build();
+            ProductoEntity updatedProducto = productoService.parcialSave(id, productoUpdated);
+            return ResponseEntity.ok(updatedProducto);
         } catch (Exception e) {
             return ResponseEntity.badRequest().build();
         }
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable Integer id) {
+        return productoService.findById(id).map(producto -> {
+            try {
+                // Eliminar imagen de GCS si existe
+                if (producto.getImagen() != null && !producto.getImagen().isEmpty()) {
+                    try {
+                        String nombreArchivo = producto.getImagen()
+                                .substring(producto.getImagen().lastIndexOf("/") + 1);
+                        fileStorageService.eliminarImagen(nombreArchivo);
+                    } catch (Exception e) {
+                        System.err.println("Error eliminando imagen de GCS: " + e.getMessage());
+                    }
+                }
+
+                productoService.deleteById(id);
+                return ResponseEntity.ok().<Void>build();
+            } catch (Exception e) {
+                return ResponseEntity.badRequest().<Void>build();
+            }
+        }).orElse(ResponseEntity.notFound().build());
     }
 
     // ====================== FILTROS ======================
@@ -119,10 +144,10 @@ public class ProductoController {
 
     // ====================== STOCK ======================
 
-    // Productos con stock bajo (<= 5)
-    @GetMapping("/stock-bajo")
-    public ResponseEntity<List<ProductoEntity>> getProductosStockBajo() {
-        List<ProductoEntity> productosStockBajo = productoService.findProductosStockBajo();
+    // Productos con stock bajo (<= X)
+    @GetMapping("/stock-bajo/{minStock}")
+    public ResponseEntity<List<ProductoEntity>> getProductosStockBajo(@PathVariable Integer minStock) {
+        List<ProductoEntity> productosStockBajo = productoService.findProductosStockBajo(minStock);
         return ResponseEntity.ok(productosStockBajo);
     }
 
@@ -203,8 +228,8 @@ public class ProductoController {
     @PostMapping("/upload-image")
     public ResponseEntity<?> uploadImage(@RequestParam("file") MultipartFile file) {
         try {
-            String nombreArchivo = fileStorageService.guardarImagen(file);
-            String imageUrl = "/uploads/productos/" + nombreArchivo;
+            String imageUrl = fileStorageService.guardarImagen(file);
+            String nombreArchivo = imageUrl.substring(imageUrl.lastIndexOf("/") + 1);
 
             Map<String, String> response = new HashMap<>();
             response.put("fileName", nombreArchivo);
@@ -237,8 +262,8 @@ public class ProductoController {
                 }
             }
 
-            String nombreArchivo = fileStorageService.guardarImagen(file);
-            String imageUrl = "/uploads/productos/" + nombreArchivo;
+            String imageUrl = fileStorageService.guardarImagen(file);
+            // String imageUrl = "/uploads/productos/" + nombreArchivo;
 
             producto.setImagen(imageUrl);
             ProductoEntity updatedProducto = productoService.save(producto);

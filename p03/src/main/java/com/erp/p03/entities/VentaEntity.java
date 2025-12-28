@@ -3,12 +3,7 @@ package com.erp.p03.entities;
 import java.time.LocalDateTime;
 import java.time.LocalDate;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -46,6 +41,11 @@ public class VentaEntity {
 
     @Column(name = "cliente_id")
     private Integer clienteId; // opcional: referencia a cliente si existe
+
+    // ← AGREGAR ESTO
+    @Transient  // No se mapea a la BD
+    private ClienteFiadoEntity cliente;  // Para incluir en JSON
+
 
     // Constructor de compatibilidad con la versión previa de tests / código
     // Firma: (int idVenta, LocalDateTime fecha, Integer usuarioId, Integer subtotal, Integer iva, Integer total, String metodoPago)

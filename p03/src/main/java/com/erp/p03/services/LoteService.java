@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
@@ -38,8 +39,9 @@ public class LoteService {
         lote.setProducto(producto);
         if (lote.getEstado() == null) lote.setEstado(Boolean.TRUE);
         if (lote.getFechaIngreso() == null) lote.setFechaIngreso(LocalDate.now());
-
+        System.out.println("Guardando lote: ");
         LoteEntity saved = loteRepository.save(lote);
+        System.out.println("Lote Guardado: ");
 
         // Recalcular stock total del producto
         int total = producto.getLotes() == null ? 0 : producto.getLotes().stream()
@@ -50,6 +52,8 @@ public class LoteService {
 
         producto.setStock(total);
         productoRepository.save(producto);
+        System.out.println("producto final: ");
+
 
         return saved;
     }
@@ -125,4 +129,21 @@ public class LoteService {
         if (lote == null) throw new IllegalArgumentException("Lote no encontrado por codigo");
         return lote;
     }
+
+    // Buscar lotes por fecha de vencimiento entre dos fechas (inclusive)
+    public List<LoteEntity> findLotesByFechaVencimientoBetween(LocalDate desde, LocalDate hasta) {
+        return loteRepository.findByFechaVencimientoBetween(desde, hasta);
+    }
+
+    public List<String>findAllCodigosLote(){
+        List<LoteEntity> lotes = loteRepository.findAll();
+        List<String> codigos = new ArrayList<>();
+        for (LoteEntity lote : lotes) {
+            if (lote.getCodigoLote() != null) {
+                codigos.add(lote.getCodigoLote());
+            }
+        }
+        return codigos;
+    }
+
 }

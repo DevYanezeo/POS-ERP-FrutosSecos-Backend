@@ -34,7 +34,15 @@ public class DetalleVentaEntity {
     
     private Integer subtotal; // subtotal en pesos chilenos
 
-    // Medio de pago aplicado a este detalle (se propaga cuando la venta queda totalmente pagada)
+    // Metodo de pago utilizado en esta venta
     @Column(name = "metodo_pago")
-    private String metodoPago;
+    private String metodoPago; // EFECTIVO, DEBITO, CREDITO, TRANSFERENCIA
+
+    // Nuevo: id del lote usado (opcional). Permite revertir cantidad al lote correcto.
+    @Column(name = "id_lote")
+    private Integer idLote;
+
+    // Nuevo: costo unitario histórico aplicado a este detalle (puede ser null si no se registró)
+    @Column(name = "costo_unitario")
+    private Integer costoUnitario;
 }

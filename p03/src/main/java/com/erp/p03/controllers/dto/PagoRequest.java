@@ -8,4 +8,3 @@ public class PagoRequest {
     private String metodoPago;
     private Integer usuarioId;
 }
-

@@ -9,6 +9,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 import com.erp.p03.controllers.dto.LoteDTO;
+import com.erp.p03.controllers.dto.ParcialDTO;
 import com.erp.p03.controllers.dto.ProductoConCategoriaDTO;
 import com.erp.p03.entities.CategoriaEntity;
 import com.erp.p03.entities.LoteEntity;
@@ -176,12 +177,12 @@ public class ProductoService {
     // ======================== REPORTES / VISTAS =========================
 
     // Devuelve productos cuyo stock sea menor o igual a 5 (alerta de stock bajo)
-    public List<ProductoEntity> findProductosStockBajo() {
+    public List<ProductoEntity> findProductosStockBajo(Integer minStock) {
         return productoRepository.findAll().stream()
                 .filter(producto -> {
                     int stock = Optional.ofNullable(producto.getStock())
                             .orElse(stockDesdeLotes(producto));
-                    return stock <= 5;
+                    return stock <= minStock;
                 })
                 .toList();
     }
@@ -251,5 +252,21 @@ public class ProductoService {
 
             return dto;
         }).toList();
+    }
+
+
+    // update parcial
+    @Transactional
+    public ProductoEntity parcialSave(Integer id, ParcialDTO dto) {
+        ProductoEntity producto = productoRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Producto no encontrado"));
+
+        if (dto.getNombre() != null) producto.setNombre(dto.getNombre());
+        if (dto.getDescripcion() != null) producto.setDescripcion(dto.getDescripcion());
+        if (dto.getUnidad() != null) producto.setUnidad(dto.getUnidad());
+        if (dto.getEstado() != null) producto.setEstado(dto.getEstado());
+        if (dto.getPrecio() != null) producto.setPrecio(dto.getPrecio());
+
+        return productoRepository.save(producto);
     }
 }

@@ -1,22 +1,37 @@
 package com.erp.p03.services;
 
+import com.google.auth.oauth2.GoogleCredentials;
+import com.google.cloud.storage.Blob;
+import com.google.cloud.storage.BlobId;
+import com.google.cloud.storage.BlobInfo;
+import com.google.cloud.storage.Storage;
+import com.google.cloud.storage.StorageOptions;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
+import jakarta.annotation.PostConstruct;
+import java.io.FileInputStream;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
 import java.util.UUID;
 
 @Service
 public class FileStorageService {
 
-    @Value("${file.upload-dir:uploads/productos}")
-    private String uploadDir;
+    @Value("${gcp.storage.bucket-name}")
+    private String bucketName;
+
+    @Value("${gcp.storage.credentials-path}")
+    private String credentialsPath;
+
+    private Storage storage;
+
+    @PostConstruct
+    public void init() throws IOException {
+        GoogleCredentials credentials = GoogleCredentials.fromStream(new FileInputStream(credentialsPath));
+        this.storage = StorageOptions.newBuilder().setCredentials(credentials).build().getService();
+    }
 
     public String guardarImagen(MultipartFile file) throws IOException {
         if (file.isEmpty()) {
@@ -36,27 +51,34 @@ public class FileStorageService {
         }
         String nombreArchivo = UUID.randomUUID().toString() + extension;
 
-        Path uploadPath = Paths.get(uploadDir);
-        if (!Files.exists(uploadPath)) {
-            Files.createDirectories(uploadPath);
-        }
+        BlobId blobId = BlobId.of(bucketName, nombreArchivo);
+        BlobInfo blobInfo = BlobInfo.newBuilder(blobId).setContentType(contentType).build();
 
-        Path destinoArchivo = uploadPath.resolve(nombreArchivo);
-        Files.copy(file.getInputStream(), destinoArchivo, StandardCopyOption.REPLACE_EXISTING);
+        // Upload file to GCS
+        storage.create(blobInfo, file.getBytes());
 
-        return nombreArchivo;
+        // Return the public URL
+        // Note: The bucket object must be publicly readable or we need to sign the URL.
+        // For simplicity in this project, we assume the bucket or objects are made
+        // public or we return the authenticated media link.
+        // A common pattern is: https://storage.googleapis.com/<BUCKET_NAME>/<FILE_NAME>
+
+        return "https://storage.googleapis.com/" + bucketName + "/" + nombreArchivo;
     }
 
-    public void eliminarImagen(String nombreArchivo) throws IOException {
-        if (nombreArchivo == null || nombreArchivo.isEmpty()) {
+    public void eliminarImagen(String urlImagen) {
+        if (urlImagen == null || urlImagen.isEmpty()) {
             return;
         }
 
-        Path archivoPath = Paths.get(uploadDir).resolve(nombreArchivo);
-        Files.deleteIfExists(archivoPath);
-    }
-
-    public Path obtenerRutaArchivo(String nombreArchivo) {
-        return Paths.get(uploadDir).resolve(nombreArchivo);
+        // Extract filename from URL
+        // URL format: https://storage.googleapis.com/<BUCKET_NAME>/<FILE_NAME>
+        try {
+            String nombreArchivo = urlImagen.substring(urlImagen.lastIndexOf("/") + 1);
+            BlobId blobId = BlobId.of(bucketName, nombreArchivo);
+            storage.delete(blobId);
+        } catch (Exception e) {
+            System.err.println("Error eliminando imagen de GCS: " + e.getMessage());
+        }
     }
 }
