@@ -446,4 +446,33 @@ public class ReporteController {
             return ResponseEntity.internalServerError().build();
         }
     }
+
+    /**
+     * Obtiene las ventas totales de cada día de la semana actual (Lun-Dom).
+     * Retorna un arreglo de 7 valores (índice 0 = Lunes, 6 = Domingo).
+     */
+    @GetMapping("/ventas/semana-actual")
+    public ResponseEntity<List<Long>> getVentasSemanaActual() {
+        LocalDate today = LocalDate.now();
+
+        // Encontrar el lunes de esta semana
+        LocalDate monday = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+
+        // Crear lista de 7 días (Lun-Dom)
+        List<Long> dailySales = new java.util.ArrayList<>();
+
+        for (int i = 0; i < 7; i++) {
+            LocalDate day = monday.plusDays(i);
+            LocalDateTime start = day.atStartOfDay();
+            LocalDateTime end = day.atTime(LocalTime.MAX);
+
+            // Obtener el resumen financiero del día
+            FinanceSummaryDTO summary = ventaService.getFinanceSummary(start, end);
+
+            // Agregar los ingresos totales del día
+            dailySales.add(summary.getTotalIngresos() != null ? summary.getTotalIngresos() : 0L);
+        }
+
+        return ResponseEntity.ok(dailySales);
+    }
 }
