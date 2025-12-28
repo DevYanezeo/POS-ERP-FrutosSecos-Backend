@@ -4,11 +4,11 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import com.erp.p03.entities.VentaEntity;
- import java.time.LocalDateTime;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Repository
-public interface VentaRepository extends JpaRepository<VentaEntity, Integer>{
+public interface VentaRepository extends JpaRepository<VentaEntity, Integer> {
 
     // Devuelve todas las ventas ordenadas por fecha descendente
     List<VentaEntity> findAllByOrderByFechaDesc();
@@ -24,9 +24,11 @@ public interface VentaRepository extends JpaRepository<VentaEntity, Integer>{
 
     // Fecha mayor/menor para casos en que sólo se dan uno de los límites
     List<VentaEntity> findByFechaAfter(LocalDateTime desde);
+
     List<VentaEntity> findByFechaBefore(LocalDateTime hasta);
 
     List<VentaEntity> findByFechaAfterAndUsuarioId(LocalDateTime desde, Integer usuarioId);
+
     List<VentaEntity> findByFechaBeforeAndUsuarioId(LocalDateTime hasta, Integer usuarioId);
 
     // ----------------- Métodos para fiado -----------------

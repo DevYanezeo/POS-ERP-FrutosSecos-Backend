@@ -72,7 +72,8 @@ public class LoteController {
         }
     }
 
-    @Getter @Setter
+    @Getter
+    @Setter
     public static class FechaVencimientoRequest {
         private java.time.LocalDate fechaVencimiento;
     }
@@ -90,7 +91,8 @@ public class LoteController {
         }
     }
 
-    @Getter @Setter
+    @Getter
+    @Setter
     public static class EstadoLoteRequest {
         private Boolean estado;
     }
@@ -108,9 +110,29 @@ public class LoteController {
         }
     }
 
-    @Getter @Setter
+    @Getter
+    @Setter
     public static class CantidadLoteRequest {
         private Integer cantidad;
+    }
+
+    // ✅ Nuevo: Modificar costo
+    @PatchMapping("/{id}/costo")
+    public ResponseEntity<LoteEntity> modificarCostoLote(
+            @PathVariable int id,
+            @RequestBody CostoLoteRequest request) {
+        try {
+            LoteEntity actualizado = loteService.updateCostoLote(id, request.getCosto());
+            return ResponseEntity.ok(actualizado);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    @Getter
+    @Setter
+    public static class CostoLoteRequest {
+        private Integer costo;
     }
 
     // ✅ Buscar lote por codigo (para escaner)
@@ -123,6 +145,7 @@ public class LoteController {
             return ResponseEntity.notFound().build();
         }
     }
+
     @GetMapping("/all-codigos")
     public ResponseEntity<List<String>> obtenerTodosCodigos() {
         List<String> codigos = loteService.findAllCodigosLote();
