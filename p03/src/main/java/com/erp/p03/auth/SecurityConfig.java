@@ -36,40 +36,39 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-    http
-        .csrf(AbstractHttpConfigurer::disable)
-        .cors(Customizer.withDefaults())
-        .authorizeHttpRequests(req ->
-            req.requestMatchers("/api/auth/**").permitAll()
-                .requestMatchers("/api/usuarios/**").hasAnyRole("ADMIN")
+        http
+                .csrf(AbstractHttpConfigurer::disable)
+                .cors(Customizer.withDefaults())
+                .authorizeHttpRequests(req -> req.requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/api/usuarios/**").hasAnyRole("ADMIN")
 
-                .requestMatchers(HttpMethod.GET, "/api/productos/**").hasAnyRole("ADMIN", "VENDEDOR", "CAJERO")
-                .requestMatchers(HttpMethod.POST, "/api/productos/**").hasAnyRole("ADMIN")
-                .requestMatchers(HttpMethod.DELETE, "/api/productos/**").hasAnyRole("ADMIN")
-                .requestMatchers(HttpMethod.PUT, "/api/productos/*/agregar-stock", "/api/productos/*/quitar-stock").hasAnyRole("ADMIN", "VENDEDOR", "CAJERO")
-                .requestMatchers(HttpMethod.PUT, "/api/productos/**").hasAnyRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/productos/**").hasAnyRole("ADMIN", "VENDEDOR", "CAJERO")
+                        .requestMatchers(HttpMethod.POST, "/api/productos/**").hasAnyRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/productos/**").hasAnyRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/productos/*/agregar-stock",
+                                "/api/productos/*/quitar-stock")
+                        .hasAnyRole("ADMIN", "VENDEDOR", "CAJERO")
+                        .requestMatchers(HttpMethod.PUT, "/api/productos/**").hasAnyRole("ADMIN")
 
+                        .requestMatchers("/api/categorias/**").hasAnyRole("ADMIN", "VENDEDOR", "CAJERO")
 
-                .requestMatchers("/api/categorias/**").hasAnyRole("ADMIN", "VENDEDOR","CAJERO")
+                        .requestMatchers("/api/ventas/**").hasAnyRole("ADMIN", "VENDEDOR", "CAJERO")
+                        .requestMatchers("/api/detalle-ventas/**").hasAnyRole("ADMIN", "VENDEDOR", "CAJERO")
 
-                .requestMatchers("/api/ventas/**").hasAnyRole("ADMIN", "VENDEDOR", "CAJERO")
-                .requestMatchers("/api/detalle-ventas/**").hasAnyRole("ADMIN", "VENDEDOR", "CAJERO")
+                        .requestMatchers("/api/movimientos-stock/**").hasAnyRole("ADMIN", "VENDEDOR")
 
-                .requestMatchers("/api/movimientos-stock/**").hasAnyRole("ADMIN", "VENDEDOR")
+                        // Reglas para endpoints de feriados: lectura permitida a roles comunes,
+                        // pero crear/editar/eliminar sólo para ADMIN
+                        .requestMatchers(HttpMethod.GET, "/api/feriados/**").hasAnyRole("ADMIN", "VENDEDOR", "CAJERO")
+                        .requestMatchers(HttpMethod.POST, "/api/feriados/**").hasAnyRole("ADMIN")
+                        .requestMatchers(HttpMethod.PATCH, "/api/feriados/**").hasAnyRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/feriados/**").hasAnyRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/lote/**").hasAnyRole("ADMIN", "VENDEDOR", "CAJERO")
+                        .requestMatchers(HttpMethod.POST, "/api/lote/**").hasAnyRole("ADMIN")
+                        .requestMatchers(HttpMethod.PATCH, "/api/lote/**").hasAnyRole("ADMIN")
+                        .requestMatchers("/api/reportes/**").hasAnyRole("ADMIN", "VENDEDOR", "CAJERO")
 
-                // Reglas para endpoints de feriados: lectura permitida a roles comunes,
-                // pero crear/editar/eliminar sólo para ADMIN
-                .requestMatchers(HttpMethod.GET, "/api/feriados/**").hasAnyRole("ADMIN", "VENDEDOR", "CAJERO")
-                .requestMatchers(HttpMethod.POST, "/api/feriados/**").hasAnyRole("ADMIN")
-                .requestMatchers(HttpMethod.PATCH, "/api/feriados/**").hasAnyRole("ADMIN")
-                .requestMatchers(HttpMethod.DELETE, "/api/feriados/**").hasAnyRole("ADMIN")
-                .requestMatchers(HttpMethod.GET, "/api/lote/**").hasAnyRole("ADMIN", "VENDEDOR", "CAJERO")
-                .requestMatchers(HttpMethod.POST, "/api/lote/**").hasAnyRole("ADMIN")
-                .requestMatchers(HttpMethod.PATCH, "/api/lote/**").hasAnyRole("ADMIN")
-                .requestMatchers("/api/reportes/**").hasAnyRole("ADMIN", "VENDEDOR", "CAJERO")
-                
-                .anyRequest().authenticated()
-        )
+                        .anyRequest().authenticated())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authenticationProvider(authenticationProvider())
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
@@ -81,7 +80,7 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(Arrays.asList("http://localhost:3000", "http://localhost:3001",
-        "http://34.44.223.145:3000"));
+                "http://34.44.223.145:3000"));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
         configuration.setAllowCredentials(true);

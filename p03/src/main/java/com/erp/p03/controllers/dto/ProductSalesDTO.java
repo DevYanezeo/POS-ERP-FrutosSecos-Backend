@@ -7,6 +7,9 @@ public class ProductSalesDTO {
     private Integer productoId;
     private String nombre;
     private Integer totalCantidad;
-    private Integer totalSubtotal;
-}
 
+    private Integer totalSubtotal;
+    private String unidad;
+    private Integer stockActual;
+    private Integer totalCosto;
+}
