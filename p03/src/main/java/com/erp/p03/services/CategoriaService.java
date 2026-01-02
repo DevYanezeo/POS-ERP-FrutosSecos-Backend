@@ -23,4 +23,17 @@ public class CategoriaService {
     public CategoriaEntity crearCategoria(CategoriaEntity categoria) {
         return categoriaRepository.save(categoria);
     }
+
+    // actualizar categoria
+    public CategoriaEntity actualizarCategoria(int id, CategoriaEntity categoria) {
+        CategoriaEntity existente = categoriaRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Categoría no encontrada"));
+        existente.setNombre(categoria.getNombre());
+        return categoriaRepository.save(existente);
+    }
+
+    // eliminar categoria
+    public void eliminarCategoria(int id) {
+        categoriaRepository.deleteById(id);
+    }
 }

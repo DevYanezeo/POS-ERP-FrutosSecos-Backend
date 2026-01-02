@@ -32,5 +32,19 @@ public class CategoriaController {
         return ResponseEntity.ok(nuevaCategoria);
     }
 
+    // actualizar categoria
+    @PutMapping("/{id}")
+    public ResponseEntity<CategoriaEntity> actualizarCategoria(@PathVariable int id, @RequestBody CategoriaEntity categoria) {
+        CategoriaEntity actualizada = categoriaService.actualizarCategoria(id, categoria);
+        return ResponseEntity.ok(actualizada);
+    }
+
+    // eliminar categoria
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> eliminarCategoria(@PathVariable int id) {
+        categoriaService.eliminarCategoria(id);
+        return ResponseEntity.noContent().build();
+    }
+
 
 }
