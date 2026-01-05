@@ -93,9 +93,15 @@ public class VentaService {
                 }
                 // Poblar código del lote si existe
                 if (detalle.getIdLote() != null) {
-                    LoteEntity lote = loteService.findById(detalle.getIdLote());
-                    if (lote != null && lote.getCodigoLote() != null) {
-                        detalle.setCodigoLote(lote.getCodigoLote());
+                    try {
+                        LoteEntity lote = loteService.findById(detalle.getIdLote());
+                        if (lote != null && lote.getCodigoLote() != null) {
+                            detalle.setCodigoLote(lote.getCodigoLote());
+                        }
+                    } catch (IllegalArgumentException e) {
+                        // Si no se encuentra el lote (puede haber sido eliminado), ignoramos o ponemos
+                        // un placeholder
+                        detalle.setCodigoLote("N/A");
                     }
                 }
             }
