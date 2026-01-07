@@ -2,24 +2,36 @@ package com.erp.p03.controllers;
 
 import org.springframework.web.bind.annotation.*;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.HttpStatus;
 
 import com.erp.p03.services.VentaService;
 import com.erp.p03.controllers.dto.ProductSalesDTO;
 import com.erp.p03.controllers.dto.ProductMarginDTO;
 import com.erp.p03.controllers.dto.ProductLossDTO;
 import com.erp.p03.controllers.dto.FinanceSummaryDTO;
+import com.erp.p03.controllers.dto.ExpiredLotDTO;
+import com.erp.p03.services.ReporteExcelService;
 
 import java.util.List;
+import java.time.DayOfWeek;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.temporal.TemporalAdjusters;
 
 @RestController
 @RequestMapping("api/reportes")
 @CrossOrigin("*")
 public class ReporteController {
 
+    private final ReporteExcelService excelService;
     private final VentaService ventaService;
 
-    public ReporteController(VentaService ventaService) {
+    public ReporteController(VentaService ventaService, ReporteExcelService excelService) {
         this.ventaService = ventaService;
+        this.excelService = excelService;
     }
 
     /**
@@ -36,8 +48,9 @@ public class ReporteController {
             @RequestParam(required = false) Integer year,
             @RequestParam(required = false) Integer month,
             @RequestParam(required = false) Integer week,
+            @RequestParam(required = false) Integer day,
             @RequestParam(required = false) Integer limit) {
-        List<ProductSalesDTO> list = ventaService.productosMasVendidosPorSemana(year, month, week, limit);
+        List<ProductSalesDTO> list = ventaService.productosMasVendidosPorSemana(year, month, week, day, limit);
         return ResponseEntity.ok(list);
     }
 
@@ -57,6 +70,16 @@ public class ReporteController {
         return ResponseEntity.ok(list);
     }
 
+    @GetMapping("/productos/dia")
+    public ResponseEntity<List<ProductSalesDTO>> productosMasVendidosPorDia(
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Integer month,
+            @RequestParam(required = false) Integer day,
+            @RequestParam(required = false) Integer limit) {
+        List<ProductSalesDTO> list = ventaService.productosMasVendidosPorDia(year, month, day, limit);
+        return ResponseEntity.ok(list);
+    }
+
     // ================= endpoints para productos menos vendidos =================
 
     /**
@@ -68,8 +91,9 @@ public class ReporteController {
             @RequestParam(required = false) Integer year,
             @RequestParam(required = false) Integer month,
             @RequestParam(required = false) Integer week,
+            @RequestParam(required = false) Integer day,
             @RequestParam(required = false) Integer limit) {
-        List<ProductSalesDTO> list = ventaService.productosMenosVendidosPorSemana(year, month, week, limit);
+        List<ProductSalesDTO> list = ventaService.productosMenosVendidosPorSemana(year, month, week, day, limit);
         return ResponseEntity.ok(list);
     }
 
@@ -86,6 +110,16 @@ public class ReporteController {
         return ResponseEntity.ok(list);
     }
 
+    @GetMapping("/productos/dia/menos")
+    public ResponseEntity<List<ProductSalesDTO>> productosMenosVendidosPorDia(
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Integer month,
+            @RequestParam(required = false) Integer day,
+            @RequestParam(required = false) Integer limit) {
+        List<ProductSalesDTO> list = ventaService.productosMenosVendidosPorDia(year, month, day, limit);
+        return ResponseEntity.ok(list);
+    }
+
     // ================ endpoints para margen de ganancias ================
 
     /**
@@ -97,8 +131,9 @@ public class ReporteController {
             @RequestParam(required = false) Integer year,
             @RequestParam(required = false) Integer month,
             @RequestParam(required = false) Integer week,
+            @RequestParam(required = false) Integer day,
             @RequestParam(required = false) Integer limit) {
-        List<ProductMarginDTO> list = ventaService.productosMargenPorSemana(year, month, week, limit);
+        List<ProductMarginDTO> list = ventaService.productosMargenPorSemana(year, month, week, day, limit);
         return ResponseEntity.ok(list);
     }
 
@@ -114,6 +149,16 @@ public class ReporteController {
         return ResponseEntity.ok(list);
     }
 
+    @GetMapping("/productos/margen/dia")
+    public ResponseEntity<List<ProductMarginDTO>> productosMargenPorDia(
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Integer month,
+            @RequestParam(required = false) Integer day,
+            @RequestParam(required = false) Integer limit) {
+        List<ProductMarginDTO> list = ventaService.productosMargenPorDia(year, month, day, limit);
+        return ResponseEntity.ok(list);
+    }
+
     // ================ endpoints para pérdidas por lotes vencidos ================
 
     /**
@@ -124,8 +169,9 @@ public class ReporteController {
             @RequestParam(required = false) Integer year,
             @RequestParam(required = false) Integer month,
             @RequestParam(required = false) Integer week,
+            @RequestParam(required = false) Integer day,
             @RequestParam(required = false) Integer limit) {
-        List<ProductLossDTO> list = ventaService.productosPerdidasPorSemana(year, month, week, limit);
+        List<ProductLossDTO> list = ventaService.productosPerdidasPorSemana(year, month, week, day, limit);
         return ResponseEntity.ok(list);
     }
 
@@ -138,6 +184,16 @@ public class ReporteController {
             @RequestParam(required = false) Integer month,
             @RequestParam(required = false) Integer limit) {
         List<ProductLossDTO> list = ventaService.productosPerdidasPorMes(year, month, limit);
+        return ResponseEntity.ok(list);
+    }
+
+    @GetMapping("/productos/perdidas/dia")
+    public ResponseEntity<List<ProductLossDTO>> productosPerdidasPorDia(
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Integer month,
+            @RequestParam(required = false) Integer day,
+            @RequestParam(required = false) Integer limit) {
+        List<ProductLossDTO> list = ventaService.productosPerdidasPorDia(year, month, day, limit);
         return ResponseEntity.ok(list);
     }
 
@@ -178,34 +234,245 @@ public class ReporteController {
     /**
      * Resumen Financiero Completo (Ingresos vs Costos vs Gastos)
      */
+    /**
+     * Resumen Financiero Completo (Ingresos vs Costos vs Gastos)
+     */
     @GetMapping("/finanzas/resumen/{periodo}")
-    public ResponseEntity<FinanceSummaryDTO> getResumenFinanciero(@PathVariable String periodo) {
-        java.time.LocalDateTime start;
-        java.time.LocalDateTime end;
+    public ResponseEntity<FinanceSummaryDTO> getResumenFinanciero(
+            @PathVariable String periodo,
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Integer month,
+            @RequestParam(required = false) Integer day) {
+        LocalDateTime start;
+        LocalDateTime end;
 
-        java.time.LocalDate today = java.time.LocalDate.now();
+        LocalDate today = LocalDate.now();
 
         if ("anio".equalsIgnoreCase(periodo) || "ano".equalsIgnoreCase(periodo)) {
-            java.time.LocalDate first = today.with(java.time.temporal.TemporalAdjusters.firstDayOfYear());
-            java.time.LocalDate last = today.with(java.time.temporal.TemporalAdjusters.lastDayOfYear());
+            int y = (year == null) ? today.getYear() : year;
+            LocalDate first = LocalDate.of(y, 1, 1);
+            LocalDate last = first.with(TemporalAdjusters.lastDayOfYear());
             start = first.atStartOfDay();
-            end = last.atTime(java.time.LocalTime.MAX);
+            end = last.atTime(LocalTime.MAX);
         } else if ("mes".equalsIgnoreCase(periodo)) {
-            java.time.LocalDate first = today.with(java.time.temporal.TemporalAdjusters.firstDayOfMonth());
-            java.time.LocalDate last = today.with(java.time.temporal.TemporalAdjusters.lastDayOfMonth());
+            int y = (year == null) ? today.getYear() : year;
+            int m = (month == null) ? today.getMonthValue() : month;
+            LocalDate first = LocalDate.of(y, m, 1);
+            LocalDate last = first.with(TemporalAdjusters.lastDayOfMonth());
             start = first.atStartOfDay();
-            end = last.atTime(java.time.LocalTime.MAX);
+            end = last.atTime(LocalTime.MAX);
+        } else if ("dia".equalsIgnoreCase(periodo)) {
+            int y = (year == null) ? today.getYear() : year;
+            int m = (month == null) ? today.getMonthValue() : month;
+            int d = (day == null) ? today.getDayOfMonth() : day;
+            LocalDate date = LocalDate.of(y, m, d);
+            start = date.atStartOfDay();
+            end = date.atTime(LocalTime.MAX);
         } else {
-            // Default: Semana actual
-            java.time.LocalDate first = today
-                    .with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY));
-            // Asegurar que cubre hasta el domingo
-            java.time.LocalDate last = first.plusDays(6);
-            start = first.atStartOfDay();
-            end = last.atTime(java.time.LocalTime.MAX);
+            // Semana
+            if (year != null && month != null && day != null) {
+                int y = year;
+                int m = month;
+                int wk = (day - 1) / 7 + 1;
+                if (wk > 5)
+                    wk = 5;
+
+                LocalDate firstOfMonth = LocalDate.of(y, m, 1);
+                LocalDate lastOfMonth = firstOfMonth
+                        .with(TemporalAdjusters.lastDayOfMonth());
+                int maxWeeks = (lastOfMonth.getDayOfMonth() + 6) / 7;
+
+                if (wk > maxWeeks)
+                    wk = 1;
+
+                int startDay = 1 + (wk - 1) * 7;
+                LocalDate startDate = LocalDate.of(y, m, startDay);
+                LocalDate endDate = startDate.plusDays(6);
+
+                if (endDate.isAfter(lastOfMonth)) {
+                    endDate = lastOfMonth;
+                }
+
+                start = startDate.atStartOfDay();
+                end = endDate.atTime(LocalTime.MAX);
+            } else {
+                LocalDate first = today
+                        .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+                LocalDate last = first.plusDays(6);
+                start = first.atStartOfDay();
+                end = last.atTime(LocalTime.MAX);
+            }
         }
 
         FinanceSummaryDTO summary = ventaService.getFinanceSummary(start, end);
         return ResponseEntity.ok(summary);
+    }
+
+    /**
+     * Detalle de pérdidas por vencimiento (lista de lotes)
+     */
+    @GetMapping("/productos/perdidas/detalle/{periodo}")
+    public ResponseEntity<List<ExpiredLotDTO>> getDetallePerdidas(
+            @PathVariable String periodo,
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Integer month,
+            @RequestParam(required = false) Integer day) {
+        LocalDateTime start;
+        LocalDateTime end;
+
+        LocalDate today = LocalDate.now();
+
+        if ("anio".equalsIgnoreCase(periodo) || "ano".equalsIgnoreCase(periodo)) {
+            int y = (year == null) ? today.getYear() : year;
+            LocalDate first = LocalDate.of(y, 1, 1);
+            LocalDate last = first.with(TemporalAdjusters.lastDayOfYear());
+            start = first.atStartOfDay();
+            end = last.atTime(LocalTime.MAX);
+        } else if ("mes".equalsIgnoreCase(periodo)) {
+            int y = (year == null) ? today.getYear() : year;
+            int m = (month == null) ? today.getMonthValue() : month;
+            LocalDate first = LocalDate.of(y, m, 1);
+            LocalDate last = first.with(TemporalAdjusters.lastDayOfMonth());
+            start = first.atStartOfDay();
+            end = last.atTime(LocalTime.MAX);
+        } else if ("dia".equalsIgnoreCase(periodo)) {
+            int y = (year == null) ? today.getYear() : year;
+            int m = (month == null) ? today.getMonthValue() : month;
+            int d = (day == null) ? today.getDayOfMonth() : day;
+            LocalDate date = LocalDate.of(y, m, d);
+            start = date.atStartOfDay();
+            end = date.atTime(LocalTime.MAX);
+        } else {
+            // Semana
+            if (year != null && month != null && day != null) {
+                int y = year;
+                int m = month;
+                int wk = (day - 1) / 7 + 1;
+                if (wk > 5)
+                    wk = 5;
+
+                LocalDate firstOfMonth = LocalDate.of(y, m, 1);
+                LocalDate lastOfMonth = firstOfMonth
+                        .with(TemporalAdjusters.lastDayOfMonth());
+                int maxWeeks = (lastOfMonth.getDayOfMonth() + 6) / 7;
+
+                if (wk > maxWeeks)
+                    wk = 1;
+
+                int startDay = 1 + (wk - 1) * 7;
+                LocalDate startDate = LocalDate.of(y, m, startDay);
+                LocalDate endDate = startDate.plusDays(6);
+
+                if (endDate.isAfter(lastOfMonth)) {
+                    endDate = lastOfMonth;
+                }
+
+                start = startDate.atStartOfDay();
+                end = endDate.atTime(LocalTime.MAX);
+            } else {
+                LocalDate first = today
+                        .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+                LocalDate last = first.plusDays(6);
+                start = first.atStartOfDay();
+                end = last.atTime(LocalTime.MAX);
+            }
+        }
+
+        // Ajuste: Para pérdidas por vencimiento, no debemos proyectar pérdidas futuras.
+        LocalDateTime now = LocalDateTime.now();
+        if (end.isAfter(now)) {
+            end = now;
+        }
+
+        List<ExpiredLotDTO> list = ventaService.getDetallePerdidasEntre(start, end);
+        return ResponseEntity.ok(list);
+    }
+
+    /**
+     * Exportar reporte financiero a Excel.
+     */
+    @GetMapping("/exportar/{periodo}")
+    public ResponseEntity<byte[]> exportarReporteExcel(
+            @PathVariable String periodo,
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Integer month) {
+
+        LocalDateTime start;
+        LocalDateTime end;
+        LocalDate today = LocalDate.now();
+        String title = "Reporte Financiero";
+
+        if ("anio".equalsIgnoreCase(periodo) || "ano".equalsIgnoreCase(periodo)) {
+            int y = (year == null) ? today.getYear() : year;
+            LocalDate first = LocalDate.of(y, 1, 1);
+            LocalDate last = first.with(TemporalAdjusters.lastDayOfYear());
+            start = first.atStartOfDay();
+            end = last.atTime(LocalTime.MAX);
+            title = "Reporte Anual " + y;
+        } else if ("mes".equalsIgnoreCase(periodo)) {
+            int y = (year == null) ? today.getYear() : year;
+            int m = (month == null) ? today.getMonthValue() : month;
+            LocalDate first = LocalDate.of(y, m, 1);
+            LocalDate last = first.with(TemporalAdjusters.lastDayOfMonth());
+            start = first.atStartOfDay();
+            end = last.atTime(LocalTime.MAX);
+            title = "Reporte Mensual " + m + "/" + y;
+        } else {
+            return ResponseEntity.badRequest().body(null);
+        }
+
+        try {
+            FinanceSummaryDTO resumen = ventaService.getFinanceSummary(start, end);
+            List<ProductSalesDTO> topVentas;
+
+            if ("mes".equalsIgnoreCase(periodo)) {
+                topVentas = ventaService.productosMasVendidosPorMes(start.getYear(), start.getMonthValue(), 20);
+            } else {
+                topVentas = ventaService.productosMasVendidosPorAnio(start.getYear(), 20);
+            }
+
+            List<ProductLossDTO> topPerdidas = ventaService.productosPerdidasEntre(start, end, 20);
+
+            byte[] content = excelService.generarReporteExcel(title, resumen, topVentas, topPerdidas);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(
+                    MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
+            headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"reporte_" + periodo + ".xlsx\"");
+
+            return new ResponseEntity<>(content, headers, HttpStatus.OK);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    /**
+     * Obtiene las ventas totales de cada día de la semana actual (Lun-Dom).
+     * Retorna un arreglo de 7 valores (índice 0 = Lunes, 6 = Domingo).
+     */
+    @GetMapping("/ventas/semana-actual")
+    public ResponseEntity<List<Long>> getVentasSemanaActual() {
+        LocalDate today = LocalDate.now();
+
+        // Encontrar el lunes de esta semana
+        LocalDate monday = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+
+        // Crear lista de 7 días (Lun-Dom)
+        List<Long> dailySales = new java.util.ArrayList<>();
+
+        for (int i = 0; i < 7; i++) {
+            LocalDate day = monday.plusDays(i);
+            LocalDateTime start = day.atStartOfDay();
+            LocalDateTime end = day.atTime(LocalTime.MAX);
+
+            // Obtener el resumen financiero del día
+            FinanceSummaryDTO summary = ventaService.getFinanceSummary(start, end);
+
+            // Agregar los ingresos totales del día
+            dailySales.add(summary.getTotalIngresos() != null ? summary.getTotalIngresos() : 0L);
+        }
+
+        return ResponseEntity.ok(dailySales);
     }
 }

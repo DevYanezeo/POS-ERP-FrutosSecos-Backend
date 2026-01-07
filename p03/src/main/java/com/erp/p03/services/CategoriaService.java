@@ -14,7 +14,7 @@ public class CategoriaService {
         this.categoriaRepository = categoriaRepository;
     }
 
-    //  Método para obtener todas las categorías
+    // Método para obtener todas las categorías
     public List<CategoriaEntity> findAll() {
         return categoriaRepository.findAll();
     }
@@ -22,5 +22,19 @@ public class CategoriaService {
     // crear nueva categoria
     public CategoriaEntity crearCategoria(CategoriaEntity categoria) {
         return categoriaRepository.save(categoria);
+    }
+
+    public CategoriaEntity actualizarCategoria(Integer id, CategoriaEntity categoriaDetails) {
+        CategoriaEntity categoria = categoriaRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Categoría no encontrada: " + id));
+        categoria.setNombre(categoriaDetails.getNombre());
+        return categoriaRepository.save(categoria);
+    }
+
+    public void eliminarCategoria(Integer id) {
+        if (!categoriaRepository.existsById(id)) {
+            throw new RuntimeException("Categoría no encontrada: " + id);
+        }
+        categoriaRepository.deleteById(id);
     }
 }

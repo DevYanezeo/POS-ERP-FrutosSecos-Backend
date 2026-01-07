@@ -19,12 +19,13 @@ public class CategoriaController {
         this.categoriaService = categoriaService;
     }
 
-    //  Endpoint para listar todas las categorías
+    // Endpoint para listar todas las categorías
     @GetMapping
     public ResponseEntity<List<CategoriaEntity>> getAllCategorias() {
         List<CategoriaEntity> categorias = categoriaService.findAll();
         return ResponseEntity.ok(categorias);
     }
+
     // crear nueva categoria
     @PostMapping("/crear")
     public ResponseEntity<CategoriaEntity> crearCategoria(@RequestBody CategoriaEntity categoria) {
@@ -32,5 +33,17 @@ public class CategoriaController {
         return ResponseEntity.ok(nuevaCategoria);
     }
 
+    @PutMapping("/{id}")
+    public ResponseEntity<CategoriaEntity> actualizarCategoria(@PathVariable Integer id,
+            @RequestBody CategoriaEntity categoria) {
+        CategoriaEntity actualizada = categoriaService.actualizarCategoria(id, categoria);
+        return ResponseEntity.ok(actualizada);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> eliminarCategoria(@PathVariable Integer id) {
+        categoriaService.eliminarCategoria(id);
+        return ResponseEntity.noContent().build();
+    }
 
 }

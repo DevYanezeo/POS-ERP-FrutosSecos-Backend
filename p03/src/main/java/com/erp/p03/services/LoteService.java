@@ -29,7 +29,8 @@ public class LoteService {
     // ✅ Crear nuevo lote
     @Transactional
     public LoteEntity crearLote(LoteEntity lote) {
-        if (lote == null) throw new IllegalArgumentException("Lote nulo");
+        if (lote == null)
+            throw new IllegalArgumentException("Lote nulo");
         if (lote.getProducto() == null || lote.getProducto().getIdProducto() == 0)
             throw new IllegalArgumentException("Producto inválido en lote");
 
@@ -37,23 +38,25 @@ public class LoteService {
                 .orElseThrow(() -> new IllegalArgumentException("Producto no encontrado"));
 
         lote.setProducto(producto);
-        if (lote.getEstado() == null) lote.setEstado(Boolean.TRUE);
-        if (lote.getFechaIngreso() == null) lote.setFechaIngreso(LocalDate.now());
+        if (lote.getEstado() == null)
+            lote.setEstado(Boolean.TRUE);
+        if (lote.getFechaIngreso() == null)
+            lote.setFechaIngreso(LocalDate.now());
         System.out.println("Guardando lote: ");
         LoteEntity saved = loteRepository.save(lote);
         System.out.println("Lote Guardado: ");
 
         // Recalcular stock total del producto
-        int total = producto.getLotes() == null ? 0 : producto.getLotes().stream()
-                .filter(Objects::nonNull)
-                .filter(l -> Boolean.TRUE.equals(l.getEstado()) && l.getCantidad() != null)
-                .mapToInt(LoteEntity::getCantidad)
-                .sum();
+        int total = producto.getLotes() == null ? 0
+                : producto.getLotes().stream()
+                        .filter(Objects::nonNull)
+                        .filter(l -> Boolean.TRUE.equals(l.getEstado()) && l.getCantidad() != null)
+                        .mapToInt(LoteEntity::getCantidad)
+                        .sum();
 
         producto.setStock(total);
         productoRepository.save(producto);
         System.out.println("producto final: ");
-
 
         return saved;
     }
@@ -117,6 +120,15 @@ public class LoteService {
         return loteRepository.save(lote);
     }
 
+    // ✅ Nuevo: actualizar costo
+    @Transactional
+    public LoteEntity updateCostoLote(int idLote, Integer nuevoCosto) {
+        LoteEntity lote = loteRepository.findById(idLote)
+                .orElseThrow(() -> new IllegalArgumentException("Lote no encontrado"));
+        lote.setCosto(nuevoCosto);
+        return loteRepository.save(lote);
+    }
+
     // Buscar por id
     public LoteEntity findById(Integer idLote) {
         return loteRepository.findById(idLote)
@@ -126,7 +138,8 @@ public class LoteService {
     // Buscar por codigo de lote
     public LoteEntity findByCodigoLote(String codigoLote) {
         LoteEntity lote = loteRepository.findByCodigoLote(codigoLote);
-        if (lote == null) throw new IllegalArgumentException("Lote no encontrado por codigo");
+        if (lote == null)
+            throw new IllegalArgumentException("Lote no encontrado por codigo");
         return lote;
     }
 
@@ -135,7 +148,7 @@ public class LoteService {
         return loteRepository.findByFechaVencimientoBetween(desde, hasta);
     }
 
-    public List<String>findAllCodigosLote(){
+    public List<String> findAllCodigosLote() {
         List<LoteEntity> lotes = loteRepository.findAll();
         List<String> codigos = new ArrayList<>();
         for (LoteEntity lote : lotes) {

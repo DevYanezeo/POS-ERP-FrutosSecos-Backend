@@ -28,14 +28,15 @@ public class GastoEntity {
     private Date fecha;
 
     @Column(nullable = false)
-    private String tipo; // OPERACIONAL, ADQUISICION, OTROS
+    private String tipo; // OPERACIONAL, ADQUISICION, OTROS, INGRESO
 
     // Relación con Usuario (quién registró el gasto)
     @ManyToOne
     @JoinColumn(name = "usuario_id", nullable = true)
     private UsuarioEntity usuario;
 
-    // Opcional: Relación con Producto si es un gasto específico de producto (merma, etc)
+    // Opcional: Relación con Producto si es un gasto específico de producto (merma,
+    // etc)
     @ManyToOne(optional = true)
     @JoinColumn(name = "producto_id", nullable = true)
     private ProductoEntity producto;

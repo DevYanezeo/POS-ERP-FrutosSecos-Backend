@@ -2,6 +2,7 @@ package com.erp.p03.entities;
 
 import java.time.LocalDateTime;
 import java.time.LocalDate;
+import java.util.List;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -17,10 +18,10 @@ public class VentaEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id_venta")
-    private int idVenta;    
-    private LocalDateTime fecha;    
+    private int idVenta;
+    private LocalDateTime fecha;
     @Column(name = "usuario_id")
-    private Integer usuarioId;    
+    private Integer usuarioId;
     private Integer subtotal; // precio sin IVA en pesos chilenos
     private Integer iva; // IVA en pesos chilenos (19%)
     private Integer total; // total en pesos chilenos
@@ -43,13 +44,18 @@ public class VentaEntity {
     private Integer clienteId; // opcional: referencia a cliente si existe
 
     // ← AGREGAR ESTO
-    @Transient  // No se mapea a la BD
-    private ClienteFiadoEntity cliente;  // Para incluir en JSON
+    @Transient // No se mapea a la BD
+    private ClienteFiadoEntity cliente; // Para incluir en JSON
 
+    // Relación con DetalleVentaEntity para incluir los detalles en JSON
+    @Transient // No se mapea directamente, lo populate manualmente en el servicio
+    private List<DetalleVentaEntity> detalles;
 
     // Constructor de compatibilidad con la versión previa de tests / código
-    // Firma: (int idVenta, LocalDateTime fecha, Integer usuarioId, Integer subtotal, Integer iva, Integer total, String metodoPago)
-    public VentaEntity(int idVenta, LocalDateTime fecha, Integer usuarioId, Integer subtotal, Integer iva, Integer total, String metodoPago) {
+    // Firma: (int idVenta, LocalDateTime fecha, Integer usuarioId, Integer
+    // subtotal, Integer iva, Integer total, String metodoPago)
+    public VentaEntity(int idVenta, LocalDateTime fecha, Integer usuarioId, Integer subtotal, Integer iva,
+            Integer total, String metodoPago) {
         this.idVenta = idVenta;
         this.fecha = fecha;
         this.usuarioId = usuarioId;

@@ -32,6 +32,11 @@ import java.sql.Timestamp;
 import java.time.temporal.WeekFields;
 import java.time.DayOfWeek;
 import java.time.temporal.TemporalAdjusters;
+import com.erp.p03.controllers.dto.ProductMarginDTO;
+import com.erp.p03.controllers.dto.ProductLossDTO;
+import com.erp.p03.controllers.dto.ExpiredLotDTO;
+import com.erp.p03.controllers.dto.FinanceSummaryDTO;
+import com.erp.p03.entities.GastoEntity;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 
@@ -73,7 +78,37 @@ public class VentaService {
     }
 
     public VentaEntity findById(Integer id) {
-        return ventaRepository.findById(id).orElse(null);
+        VentaEntity venta = ventaRepository.findById(id).orElse(null);
+        if (venta != null) {
+            // Cargar los detalles de la venta
+            List<DetalleVentaEntity> detalles = detalleVentaRepository.findByVentaId(id);
+
+            // Poblar el nombre del producto, su unidad y código de lote para cada detalle
+            for (DetalleVentaEntity detalle : detalles) {
+                if (detalle.getProductoId() != null) {
+                    productoService.findById(detalle.getProductoId()).ifPresent(producto -> {
+                        detalle.setProductoNombre(producto.getNombre());
+                        detalle.setProductoUnidad(producto.getUnidad());
+                    });
+                }
+                // Poblar código del lote si existe
+                if (detalle.getIdLote() != null) {
+                    try {
+                        LoteEntity lote = loteService.findById(detalle.getIdLote());
+                        if (lote != null && lote.getCodigoLote() != null) {
+                            detalle.setCodigoLote(lote.getCodigoLote());
+                        }
+                    } catch (IllegalArgumentException e) {
+                        // Si no se encuentra el lote (puede haber sido eliminado), ignoramos o ponemos
+                        // un placeholder
+                        detalle.setCodigoLote("N/A");
+                    }
+                }
+            }
+
+            venta.setDetalles(detalles);
+        }
+        return venta;
     }
 
     public void deleteById(Integer id) {
@@ -767,6 +802,9 @@ public class VentaService {
             else if (o3 instanceof Number)
                 totalSubtotal = ((Number) o3).intValue();
             dto.setTotalSubtotal(totalSubtotal == null ? 0 : totalSubtotal);
+
+            Object o4 = row[4];
+            dto.setUnidad(o4 == null ? null : o4.toString());
             result.add(dto);
             count++;
         }
@@ -783,6 +821,7 @@ public class VentaService {
      * WeekFields.ISO (semana ISO del año).
      */
     public java.util.List<ProductSalesDTO> productosMasVendidosPorSemana(Integer year, Integer month, Integer week,
+            Integer day,
             Integer limit) {
         java.time.LocalDate today = java.time.LocalDate.now();
         // Si month es null, usamos semana ISO del año
@@ -807,13 +846,34 @@ public class VentaService {
             // Validar mes
             if (m < 1 || m > 12)
                 throw new IllegalArgumentException("month debe estar entre 1 y 12");
+
+            // Si week no viene pero viene day, calculamos la semana
+            int wk;
+            if (week == null && day != null) {
+                // Cálculo simple: (dia - 1) / 7 + 1
+                wk = (day - 1) / 7 + 1;
+                // Ajustar si se pasa de 5 (puede pasar en dias 29-31)
+                if (wk > 5)
+                    wk = 5;
+            } else {
+                wk = (week == null) ? 1 : week;
+            }
+
             LocalDate firstOfMonth = LocalDate.of(y, m, 1);
             LocalDate lastOfMonth = firstOfMonth.with(TemporalAdjusters.lastDayOfMonth());
             int maxWeeks = (lastOfMonth.getDayOfMonth() + 6) / 7; // semanas completas en el mes
-            int wk = (week == null) ? 1 : week;
+
             // Validar rango de semana dentro del mes
             if (wk < 1 || wk > maxWeeks)
-                throw new IllegalArgumentException("week dentro del mes fuera de rango (1.." + maxWeeks + ")");
+                // Si se calculó mal o viene mal, fallback a 1 o error.
+                // Para ser tolerantes, si se calculó en base a day valido, no deberia fallar
+                // salvo edge cases.
+                // Si viene explicito y está mal, exception.
+                if (week != null)
+                    throw new IllegalArgumentException("week dentro del mes fuera de rango (1.." + maxWeeks + ")");
+                else
+                    wk = 1; // Fallback seguro
+
             int startDay = 1 + (wk - 1) * 7;
             LocalDate startDate = LocalDate.of(y, m, startDay);
             LocalDate endDate = startDate.plusDays(6);
@@ -889,6 +949,21 @@ public class VentaService {
             else if (o3 instanceof Number)
                 totalSubtotal = ((Number) o3).intValue();
             dto.setTotalSubtotal(totalSubtotal == null ? 0 : totalSubtotal);
+            Object o4 = row[4];
+            dto.setUnidad(o4 == null ? null : o4.toString());
+
+            Object o5 = row[5];
+            Integer stockActual = null;
+            if (o5 instanceof Number)
+                stockActual = ((Number) o5).intValue();
+            dto.setStockActual(stockActual == null ? 0 : stockActual);
+
+            Object o6 = row[6];
+            Integer totalCosto = null;
+            if (o6 instanceof Number)
+                totalCosto = ((Number) o6).intValue();
+            dto.setTotalCosto(totalCosto == null ? 0 : totalCosto);
+
             result.add(dto);
             count++;
         }
@@ -900,6 +975,7 @@ public class VentaService {
      * `productosMasVendidosPorSemana`.
      */
     public java.util.List<ProductSalesDTO> productosMenosVendidosPorSemana(Integer year, Integer month, Integer week,
+            Integer day,
             Integer limit) {
         java.time.LocalDate today = java.time.LocalDate.now();
         if (month == null) {
@@ -920,12 +996,26 @@ public class VentaService {
             int m = month;
             if (m < 1 || m > 12)
                 throw new IllegalArgumentException("month debe estar entre 1 y 12");
+
+            int wk;
+            if (week == null && day != null) {
+                wk = (day - 1) / 7 + 1;
+                if (wk > 5)
+                    wk = 5;
+            } else {
+                wk = (week == null) ? 1 : week;
+            }
+
             LocalDate firstOfMonth = LocalDate.of(y, m, 1);
             LocalDate lastOfMonth = firstOfMonth.with(TemporalAdjusters.lastDayOfMonth());
             int maxWeeks = (lastOfMonth.getDayOfMonth() + 6) / 7;
-            int wk = (week == null) ? 1 : week;
+
             if (wk < 1 || wk > maxWeeks)
-                throw new IllegalArgumentException("week dentro del mes fuera de rango (1.." + maxWeeks + ")");
+                if (week != null)
+                    throw new IllegalArgumentException("week dentro del mes fuera de rango (1.." + maxWeeks + ")");
+                else
+                    wk = 1;
+
             int startDay = 1 + (wk - 1) * 7;
             LocalDate startDate = LocalDate.of(y, m, startDay);
             LocalDate endDate = startDate.plusDays(6);
@@ -1060,9 +1150,9 @@ public class VentaService {
     }
 
     // Productos margen en una semana
-    public java.util.List<com.erp.p03.controllers.dto.ProductMarginDTO> productosMargenPorSemana(Integer year,
-            Integer month, Integer week, Integer limit) {
-        java.time.LocalDate today = java.time.LocalDate.now();
+    public List<ProductMarginDTO> productosMargenPorSemana(Integer year,
+            Integer month, Integer week, Integer day, Integer limit) {
+        LocalDate today = LocalDate.now();
         if (month == null) {
             WeekFields wf = WeekFields.ISO;
             int targetYear = (year == null) ? today.get(wf.weekBasedYear()) : year;
@@ -1083,12 +1173,26 @@ public class VentaService {
             int m = month;
             if (m < 1 || m > 12)
                 throw new IllegalArgumentException("month debe estar entre 1 y 12");
+
+            int wk;
+            if (week == null && day != null) {
+                wk = (day - 1) / 7 + 1;
+                if (wk > 5)
+                    wk = 5;
+            } else {
+                wk = (week == null) ? 1 : week;
+            }
+
             LocalDate firstOfMonth = LocalDate.of(y, m, 1);
             LocalDate lastOfMonth = firstOfMonth.with(TemporalAdjusters.lastDayOfMonth());
             int maxWeeks = (lastOfMonth.getDayOfMonth() + 6) / 7;
-            int wk = (week == null) ? 1 : week;
+
             if (wk < 1 || wk > maxWeeks)
-                throw new IllegalArgumentException("week dentro del mes fuera de rango (1.." + maxWeeks + ")");
+                if (week != null)
+                    throw new IllegalArgumentException("week dentro del mes fuera de rango (1.." + maxWeeks + ")");
+                else
+                    wk = 1;
+
             int startDay = 1 + (wk - 1) * 7;
             LocalDate startDate = LocalDate.of(y, m, startDay);
             LocalDate endDate = startDate.plusDays(6);
@@ -1101,9 +1205,9 @@ public class VentaService {
     }
 
     // Productos margen en un mes
-    public java.util.List<com.erp.p03.controllers.dto.ProductMarginDTO> productosMargenPorMes(Integer year,
+    public List<ProductMarginDTO> productosMargenPorMes(Integer year,
             Integer month, Integer limit) {
-        java.time.LocalDate today = java.time.LocalDate.now();
+        LocalDate today = LocalDate.now();
         int y = (year == null) ? today.getYear() : year;
         int m = (month == null) ? today.getMonthValue() : month;
         LocalDate first = LocalDate.of(y, m, 1);
@@ -1121,24 +1225,26 @@ public class VentaService {
      * Nota: refleja pérdidas según la cantidad registrada en el lote; no
      * reconstruye históricos.
      */
-    public java.util.List<com.erp.p03.controllers.dto.ProductLossDTO> productosPerdidasEntre(LocalDateTime start,
+    public List<ProductLossDTO> productosPerdidasEntre(LocalDateTime start,
             LocalDateTime end, Integer limit) {
         if (start == null || end == null)
             throw new IllegalArgumentException("start y end son requeridos");
-        java.time.LocalDate desde = start.toLocalDate();
-        java.time.LocalDate hasta = end.toLocalDate();
+        LocalDate desde = start.toLocalDate();
+        LocalDate hasta = end.toLocalDate();
 
-        java.util.List<com.erp.p03.entities.LoteEntity> lotes = loteService.findLotesByFechaVencimientoBetween(desde,
+        List<LoteEntity> lotes = loteService.findLotesByFechaVencimientoBetween(desde,
                 hasta);
-        java.util.Map<Integer, com.erp.p03.controllers.dto.ProductLossDTO> map = new java.util.HashMap<>();
+        Map<Integer, ProductLossDTO> map = new HashMap<>();
 
-        for (com.erp.p03.entities.LoteEntity lote : lotes) {
+        for (LoteEntity lote : lotes) {
             if (lote == null)
                 continue;
             Integer pid = lote.getProducto() == null ? null : lote.getProducto().getIdProducto();
             if (pid == null)
                 continue;
             Integer cantidad = lote.getCantidad() == null ? 0 : lote.getCantidad();
+            if (cantidad <= 0)
+                continue;
             Integer costo = lote.getCosto() == null ? 0 : lote.getCosto();
 
             // Si el costo es 0 (modelo de gastos de adquisición), usamos el precio de venta
@@ -1150,9 +1256,9 @@ public class VentaService {
 
             int perdida = cantidad * valorUnitario;
 
-            com.erp.p03.controllers.dto.ProductLossDTO dto = map.get(pid);
+            ProductLossDTO dto = map.get(pid);
             if (dto == null) {
-                dto = new com.erp.p03.controllers.dto.ProductLossDTO();
+                dto = new ProductLossDTO();
                 dto.setProductoId(pid);
                 dto.setNombre(lote.getProducto() == null ? null : lote.getProducto().getNombre());
                 dto.setTotalCantidadPerdida(0);
@@ -1163,97 +1269,171 @@ public class VentaService {
             dto.setTotalPerdida(dto.getTotalPerdida() + perdida);
         }
 
-        java.util.List<com.erp.p03.controllers.dto.ProductLossDTO> result = new java.util.ArrayList<>(map.values());
+        List<ProductLossDTO> result = new ArrayList<>(map.values());
         // Ordenar por pérdida descendente (las mayores pérdidas primero)
-        result.sort(java.util.Comparator.comparing(com.erp.p03.controllers.dto.ProductLossDTO::getTotalPerdida,
-                java.util.Comparator.nullsLast(java.util.Comparator.naturalOrder())).reversed());
+        result.sort(Comparator.comparing(ProductLossDTO::getTotalPerdida,
+                Comparator.nullsLast(Comparator.naturalOrder())).reversed());
         if (limit != null && limit > 0 && result.size() > limit)
             return result.subList(0, limit);
         return result;
     }
 
-    public java.util.List<com.erp.p03.controllers.dto.ProductLossDTO> productosPerdidasPorSemana(Integer year,
-            Integer month, Integer week, Integer limit) {
-        java.time.LocalDate today = java.time.LocalDate.now();
+    public List<ExpiredLotDTO> getDetallePerdidasEntre(LocalDateTime start,
+            LocalDateTime end) {
+        if (start == null || end == null)
+            throw new IllegalArgumentException("start y end son requeridos");
+        LocalDate desde = start.toLocalDate();
+        LocalDate hasta = end.toLocalDate();
+
+        List<LoteEntity> lotes = loteService.findLotesByFechaVencimientoBetween(desde,
+                hasta);
+        List<ExpiredLotDTO> result = new ArrayList<>();
+
+        for (LoteEntity lote : lotes) {
+            if (lote == null)
+                continue;
+
+            Integer cantidad = lote.getCantidad() == null ? 0 : lote.getCantidad();
+            // Solo considerar lotes con remanente, o conceptualmente todos los vencidos?
+            // User context: "perdidas por vencimiento".
+            // Previous logic counted all quantity in expired lots. Assuming expired lot =
+            // total loss of remaining stock.
+            // But wait, `findLotesByFechaVencimientoBetween` might return lots that were
+            // fully sold?
+            // Usually "losses" implies stock that wasn't sold.
+            // If `lote.cantidad` is the CURRENT stock, then yes, that is the loss.
+
+            if (cantidad <= 0)
+                continue; // Si no hay stock, no hay perdida (fue vendido o ajustes previos)
+
+            Integer costo = lote.getCosto() == null ? 0 : lote.getCosto();
+
+            // Cost management logic similar to aggregated view
+            int valorUnitario = (costo > 0) ? costo
+                    : (lote.getProducto() != null && lote.getProducto().getPrecio() != null
+                            ? lote.getProducto().getPrecio()
+                            : 0);
+
+            int perdida = cantidad * valorUnitario;
+
+            ExpiredLotDTO dto = new ExpiredLotDTO();
+            dto.setLoteId(lote.getIdLote());
+            dto.setCodigoLote(lote.getCodigoLote());
+            dto.setProductoNombre(lote.getProducto() != null ? lote.getProducto().getNombre() : "Lote sin producto");
+            dto.setCantidad(cantidad);
+            dto.setCostoUnitario(valorUnitario);
+            dto.setPerdidaTotal(perdida);
+            dto.setFechaVencimiento(lote.getFechaVencimiento());
+
+            result.add(dto);
+        }
+
+        // Sort by expiration date descending
+        result.sort((a, b) -> b.getFechaVencimiento().compareTo(a.getFechaVencimiento()));
+
+        return result;
+    }
+
+    public List<ProductLossDTO> productosPerdidasPorSemana(Integer year,
+            Integer month, Integer week, Integer day, Integer limit) {
+        LocalDate today = LocalDate.now();
         if (month == null) {
-            java.time.temporal.WeekFields wf = java.time.temporal.WeekFields.ISO;
+            WeekFields wf = WeekFields.ISO;
             int targetYear = (year == null) ? today.get(wf.weekBasedYear()) : year;
             int targetWeek = (week == null) ? today.get(wf.weekOfWeekBasedYear()) : week;
 
-            java.time.LocalDate firstDay = LocalDate.now()
+            LocalDate firstDay = LocalDate.now()
                     .with(wf.weekBasedYear(), targetYear)
                     .with(wf.weekOfWeekBasedYear(), targetWeek)
-                    .with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY));
-            java.time.LocalDate lastDay = firstDay.plusDays(6);
-            java.time.LocalDateTime start = firstDay.atStartOfDay();
-            java.time.LocalDateTime end = lastDay.atTime(LocalTime.MAX);
+                    .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+            LocalDate lastDay = firstDay.plusDays(6);
+            LocalDateTime start = firstDay.atStartOfDay();
+            LocalDateTime end = lastDay.atTime(LocalTime.MAX);
             return productosPerdidasEntre(start, end, limit);
         } else {
             int y = (year == null) ? today.getYear() : year;
             int m = month;
             if (m < 1 || m > 12)
                 throw new IllegalArgumentException("month debe estar entre 1 y 12");
-            java.time.LocalDate firstOfMonth = java.time.LocalDate.of(y, m, 1);
-            java.time.LocalDate lastOfMonth = firstOfMonth.with(java.time.temporal.TemporalAdjusters.lastDayOfMonth());
+
+            int wk;
+            if (week == null && day != null) {
+                wk = (day - 1) / 7 + 1;
+                if (wk > 5)
+                    wk = 5;
+            } else {
+                wk = (week == null) ? 1 : week;
+            }
+
+            LocalDate firstOfMonth = LocalDate.of(y, m, 1);
+            LocalDate lastOfMonth = firstOfMonth.with(TemporalAdjusters.lastDayOfMonth());
             int maxWeeks = (lastOfMonth.getDayOfMonth() + 6) / 7;
-            int wk = (week == null) ? 1 : week;
+
             if (wk < 1 || wk > maxWeeks)
-                throw new IllegalArgumentException("week dentro del mes fuera de rango (1.." + maxWeeks + ")");
+                if (week != null)
+                    throw new IllegalArgumentException("week dentro del mes fuera de rango (1.." + maxWeeks + ")");
+                else
+                    wk = 1;
+
             int startDay = 1 + (wk - 1) * 7;
-            java.time.LocalDate startDate = java.time.LocalDate.of(y, m, startDay);
-            java.time.LocalDate endDate = startDate.plusDays(6);
+            LocalDate startDate = LocalDate.of(y, m, startDay);
+            LocalDate endDate = startDate.plusDays(6);
             if (endDate.isAfter(lastOfMonth))
                 endDate = lastOfMonth;
-            java.time.LocalDateTime start = startDate.atStartOfDay();
-            java.time.LocalDateTime end = endDate.atTime(LocalTime.MAX);
+            LocalDateTime start = startDate.atStartOfDay();
+            LocalDateTime end = endDate.atTime(LocalTime.MAX);
             return productosPerdidasEntre(start, end, limit);
         }
     }
 
     // pérdidas en un mes
-    public java.util.List<com.erp.p03.controllers.dto.ProductLossDTO> productosPerdidasPorMes(Integer year,
+    public List<ProductLossDTO> productosPerdidasPorMes(Integer year,
             Integer month, Integer limit) {
-        java.time.LocalDate today = java.time.LocalDate.now();
+        LocalDate today = LocalDate.now();
         int y = (year == null) ? today.getYear() : year;
         int m = (month == null) ? today.getMonthValue() : month;
-        java.time.LocalDate first = java.time.LocalDate.of(y, m, 1);
-        java.time.LocalDate last = first.with(java.time.temporal.TemporalAdjusters.lastDayOfMonth());
-        java.time.LocalDateTime start = first.atStartOfDay();
+        LocalDate first = LocalDate.of(y, m, 1);
+        LocalDate last = first.with(TemporalAdjusters.lastDayOfMonth());
+        LocalDateTime start = first.atStartOfDay();
         // CLAMP: El fin del reporte de pérdidas no debe exceder "hoy",
         // porque algo que vence mañana no es pérdida hoy.
         if (last.isAfter(today)) {
             last = today;
         }
-        java.time.LocalDateTime end = last.atTime(LocalTime.MAX);
+        LocalDateTime end = last.atTime(LocalTime.MAX);
         return productosPerdidasEntre(start, end, limit);
     }
 
     // ================== Resumen Financiero Integrado ==================
 
-    public com.erp.p03.controllers.dto.FinanceSummaryDTO getFinanceSummary(LocalDateTime start, LocalDateTime end) {
+    public FinanceSummaryDTO getFinanceSummary(LocalDateTime start, LocalDateTime end) {
         // 1. Obtener Margen de Productos (Ingresos y Costos de Ventas)
         // Usamos productosMargenEntre para obtener ingresos y costos de productos
         // vendidos
-        List<com.erp.p03.controllers.dto.ProductMarginDTO> margins = productosMargenEntre(start, end, null);
+        List<ProductMarginDTO> margins = productosMargenEntre(start, end, null);
 
         long totalIngresos = 0;
         long totalCostoProductos = 0;
 
-        for (com.erp.p03.controllers.dto.ProductMarginDTO m : margins) {
+        for (ProductMarginDTO m : margins) {
             totalIngresos += (m.getTotalIngreso() != null ? m.getTotalIngreso() : 0);
             totalCostoProductos += (m.getTotalCosto() != null ? m.getTotalCosto() : 0);
         }
 
-        // 2. Obtener Gastos del periodo
-        List<com.erp.p03.entities.GastoEntity> gastos = gastoService.listarPorRangoFecha(
+        // 2. Obtener Gastos e Ingresos del periodo
+        List<GastoEntity> registros = gastoService.listarPorRangoFecha(
                 java.sql.Date.valueOf(start.toLocalDate()),
                 java.sql.Date.valueOf(end.toLocalDate()));
 
         long gastosAdquisicion = 0;
         long gastosOperacionales = 0; // Incluye OPERACIONAL y OTROS
+        long ingresosAdicionales = 0; // Ingresos adicionales tipo INGRESO
 
-        for (com.erp.p03.entities.GastoEntity g : gastos) {
-            if ("ADQUISICION".equalsIgnoreCase(g.getTipo())) {
+        for (GastoEntity g : registros) {
+            if ("INGRESO".equalsIgnoreCase(g.getTipo())) {
+                // Los ingresos se suman
+                ingresosAdicionales += g.getMonto();
+            } else if ("ADQUISICION".equalsIgnoreCase(g.getTipo())) {
                 gastosAdquisicion += g.getMonto();
             } else {
                 // OPERACIONAL y OTROS (y cualquier otro tipo futuro) van a
@@ -1263,18 +1443,23 @@ public class VentaService {
         }
 
         // 3. Calcular Totales
-        // Utilidad Bruta = Ingresos por Venta - Costos de Productos Vendidos - Gastos
+        // Utilidad Bruta = Ingresos por Venta + Ingresos Adicionales - Costos de
+        // Productos Vendidos - Gastos
         // Adquisición (Mercadería extra)
-        long utilidadBruta = totalIngresos - totalCostoProductos - gastosAdquisicion;
+        long utilidadBruta = totalIngresos + ingresosAdicionales - totalCostoProductos - gastosAdquisicion;
 
         // Utilidad Neta = Utilidad Bruta - Gastos Operacionales
         long utilidadNeta = utilidadBruta - gastosOperacionales;
 
         // Margen Neto %
-        double margenPorcentaje = (totalIngresos > 0) ? ((double) utilidadNeta / totalIngresos) * 100 : 0.0;
+        long totalIngresosConAdicionales = totalIngresos + ingresosAdicionales;
+        double margenPorcentaje = (totalIngresosConAdicionales > 0)
+                ? ((double) utilidadNeta / totalIngresosConAdicionales) * 100
+                : 0.0;
 
         com.erp.p03.controllers.dto.FinanceSummaryDTO summary = new com.erp.p03.controllers.dto.FinanceSummaryDTO();
         summary.setTotalIngresos(totalIngresos);
+        summary.setIngresosAdicionales(ingresosAdicionales);
         summary.setTotalCostoProductos(totalCostoProductos);
         summary.setGastosAdquisicion(gastosAdquisicion);
         summary.setGastosOperacionales(gastosOperacionales);
@@ -1340,6 +1525,71 @@ public class VentaService {
         }
         LocalDateTime start = first.atStartOfDay();
         LocalDateTime end = last.atTime(LocalTime.MAX);
+        return productosPerdidasEntre(start, end, limit);
+    }
+
+    /**
+     * Productos más vendidos en un día specific.
+     */
+    public java.util.List<ProductSalesDTO> productosMasVendidosPorDia(Integer year, Integer month, Integer day,
+            Integer limit) {
+        java.time.LocalDate today = java.time.LocalDate.now();
+        int y = (year == null) ? today.getYear() : year;
+        int m = (month == null) ? today.getMonthValue() : month;
+        int d = (day == null) ? today.getDayOfMonth() : day;
+
+        LocalDateTime start = LocalDate.of(y, m, d).atStartOfDay();
+        LocalDateTime end = LocalDate.of(y, m, d).atTime(LocalTime.MAX);
+        return productosMasVendidosEntre(start, end, limit);
+    }
+
+    /**
+     * Productos menos vendidos en un día specific.
+     */
+    public java.util.List<ProductSalesDTO> productosMenosVendidosPorDia(Integer year, Integer month, Integer day,
+            Integer limit) {
+        java.time.LocalDate today = java.time.LocalDate.now();
+        int y = (year == null) ? today.getYear() : year;
+        int m = (month == null) ? today.getMonthValue() : month;
+        int d = (day == null) ? today.getDayOfMonth() : day;
+
+        LocalDateTime start = LocalDate.of(y, m, d).atStartOfDay();
+        LocalDateTime end = LocalDate.of(y, m, d).atTime(LocalTime.MAX);
+        return productosMenosVendidosEntre(start, end, limit);
+    }
+
+    /**
+     * Margen por producto en un día specific.
+     */
+    public java.util.List<com.erp.p03.controllers.dto.ProductMarginDTO> productosMargenPorDia(Integer year,
+            Integer month, Integer day, Integer limit) {
+        java.time.LocalDate today = java.time.LocalDate.now();
+        int y = (year == null) ? today.getYear() : year;
+        int m = (month == null) ? today.getMonthValue() : month;
+        int d = (day == null) ? today.getDayOfMonth() : day;
+
+        LocalDateTime start = LocalDate.of(y, m, d).atStartOfDay();
+        LocalDateTime end = LocalDate.of(y, m, d).atTime(LocalTime.MAX);
+        return productosMargenEntre(start, end, limit);
+    }
+
+    /**
+     * Pérdidas por productos en un día specific.
+     */
+    public java.util.List<com.erp.p03.controllers.dto.ProductLossDTO> productosPerdidasPorDia(Integer year,
+            Integer month, Integer day, Integer limit) {
+        java.time.LocalDate today = java.time.LocalDate.now();
+        int y = (year == null) ? today.getYear() : year;
+        int m = (month == null) ? today.getMonthValue() : month;
+        int d = (day == null) ? today.getDayOfMonth() : day;
+
+        // No permitir días futuros para pérdidas
+        if (LocalDate.of(y, m, d).isAfter(today)) {
+            return new java.util.ArrayList<>();
+        }
+
+        LocalDateTime start = LocalDate.of(y, m, d).atStartOfDay();
+        LocalDateTime end = LocalDate.of(y, m, d).atTime(LocalTime.MAX);
         return productosPerdidasEntre(start, end, limit);
     }
 }
