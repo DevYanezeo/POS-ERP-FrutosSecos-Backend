@@ -25,15 +25,13 @@ public class ProductoEntity {
     private Integer precio; // en clp
     private Integer stock; // total de todos los lotes activos
     private String unidad; // kg, lt, und
-    private Boolean estado; // activo o inactivo
+    private Boolean estado = true; // activo o inactivo
     @Column(name = "codigo", unique = true)
     private String codigo; // codigo de barras
     @Column(name = "categoria_id")
     private Integer categoriaId;
-    @OneToMany(mappedBy = "producto", fetch = FetchType.LAZY,
-            cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "producto", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonIgnoreProperties("producto")
     private List<LoteEntity> lotes = new ArrayList<>();
-
 
 }
