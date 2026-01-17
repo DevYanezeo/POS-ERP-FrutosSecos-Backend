@@ -78,7 +78,37 @@ public class VentaService {
     }
 
     public VentaEntity findById(Integer id) {
-        return ventaRepository.findById(id).orElse(null);
+        VentaEntity venta = ventaRepository.findById(id).orElse(null);
+        if (venta != null) {
+            // Cargar los detalles de la venta
+            List<DetalleVentaEntity> detalles = detalleVentaRepository.findByVentaId(id);
+
+            // Poblar el nombre del producto, su unidad y código de lote para cada detalle
+            for (DetalleVentaEntity detalle : detalles) {
+                if (detalle.getProductoId() != null) {
+                    productoService.findById(detalle.getProductoId()).ifPresent(producto -> {
+                        detalle.setProductoNombre(producto.getNombre());
+                        detalle.setProductoUnidad(producto.getUnidad());
+                    });
+                }
+                // Poblar código del lote si existe
+                if (detalle.getIdLote() != null) {
+                    try {
+                        LoteEntity lote = loteService.findById(detalle.getIdLote());
+                        if (lote != null && lote.getCodigoLote() != null) {
+                            detalle.setCodigoLote(lote.getCodigoLote());
+                        }
+                    } catch (IllegalArgumentException e) {
+                        // Si no se encuentra el lote (puede haber sido eliminado), ignoramos o ponemos
+                        // un placeholder
+                        detalle.setCodigoLote("N/A");
+                    }
+                }
+            }
+
+            venta.setDetalles(detalles);
+        }
+        return venta;
     }
 
     public void deleteById(Integer id) {
@@ -1390,16 +1420,20 @@ public class VentaService {
             totalCostoProductos += (m.getTotalCosto() != null ? m.getTotalCosto() : 0);
         }
 
-        // 2. Obtener Gastos del periodo
-        List<GastoEntity> gastos = gastoService.listarPorRangoFecha(
+        // 2. Obtener Gastos e Ingresos del periodo
+        List<GastoEntity> registros = gastoService.listarPorRangoFecha(
                 java.sql.Date.valueOf(start.toLocalDate()),
                 java.sql.Date.valueOf(end.toLocalDate()));
 
         long gastosAdquisicion = 0;
         long gastosOperacionales = 0; // Incluye OPERACIONAL y OTROS
+        long ingresosAdicionales = 0; // Ingresos adicionales tipo INGRESO
 
-        for (GastoEntity g : gastos) {
-            if ("ADQUISICION".equalsIgnoreCase(g.getTipo())) {
+        for (GastoEntity g : registros) {
+            if ("INGRESO".equalsIgnoreCase(g.getTipo())) {
+                // Los ingresos se suman
+                ingresosAdicionales += g.getMonto();
+            } else if ("ADQUISICION".equalsIgnoreCase(g.getTipo())) {
                 gastosAdquisicion += g.getMonto();
             } else {
                 // OPERACIONAL y OTROS (y cualquier otro tipo futuro) van a
@@ -1409,18 +1443,23 @@ public class VentaService {
         }
 
         // 3. Calcular Totales
-        // Utilidad Bruta = Ingresos por Venta - Costos de Productos Vendidos - Gastos
+        // Utilidad Bruta = Ingresos por Venta + Ingresos Adicionales - Costos de
+        // Productos Vendidos - Gastos
         // Adquisición (Mercadería extra)
-        long utilidadBruta = totalIngresos - totalCostoProductos - gastosAdquisicion;
+        long utilidadBruta = totalIngresos + ingresosAdicionales - totalCostoProductos - gastosAdquisicion;
 
         // Utilidad Neta = Utilidad Bruta - Gastos Operacionales
         long utilidadNeta = utilidadBruta - gastosOperacionales;
 
         // Margen Neto %
-        double margenPorcentaje = (totalIngresos > 0) ? ((double) utilidadNeta / totalIngresos) * 100 : 0.0;
+        long totalIngresosConAdicionales = totalIngresos + ingresosAdicionales;
+        double margenPorcentaje = (totalIngresosConAdicionales > 0)
+                ? ((double) utilidadNeta / totalIngresosConAdicionales) * 100
+                : 0.0;
 
         com.erp.p03.controllers.dto.FinanceSummaryDTO summary = new com.erp.p03.controllers.dto.FinanceSummaryDTO();
         summary.setTotalIngresos(totalIngresos);
+        summary.setIngresosAdicionales(ingresosAdicionales);
         summary.setTotalCostoProductos(totalCostoProductos);
         summary.setGastosAdquisicion(gastosAdquisicion);
         summary.setGastosOperacionales(gastosOperacionales);

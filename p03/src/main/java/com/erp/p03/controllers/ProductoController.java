@@ -54,12 +54,31 @@ public class ProductoController {
 
     @PutMapping("/{id}")
     public ResponseEntity<ProductoEntity> update(@PathVariable Integer id, @RequestBody ProductoEntity producto) {
-        if (!productoService.existsById(id)) {
+        ProductoEntity existing = productoService.findById(id).orElse(null);
+        if (existing == null) {
             return ResponseEntity.notFound().build();
         }
         try {
-            producto.setIdProducto(id);
-            ProductoEntity updatedProducto = productoService.save(producto);
+            // Actualizar solo campos básicos, ignorando lotes para evitar corrupción de
+            // datos
+            // si el frontend envía DTOs incompletos.
+            if (producto.getNombre() != null)
+                existing.setNombre(producto.getNombre());
+            if (producto.getDescripcion() != null)
+                existing.setDescripcion(producto.getDescripcion());
+            if (producto.getPrecio() != null)
+                existing.setPrecio(producto.getPrecio());
+            if (producto.getUnidad() != null)
+                existing.setUnidad(producto.getUnidad());
+            if (producto.getEstado() != null)
+                existing.setEstado(producto.getEstado());
+
+            // Actualizar categoría
+            existing.setCategoriaId(producto.getCategoriaId());
+
+            // No tocamos lotes, imagen ni código aquí
+
+            ProductoEntity updatedProducto = productoService.save(existing);
             return ResponseEntity.ok(updatedProducto);
         } catch (Exception e) {
             return ResponseEntity.badRequest().build();
