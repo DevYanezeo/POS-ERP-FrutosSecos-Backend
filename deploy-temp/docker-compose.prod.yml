@@ -16,6 +16,11 @@ services:
       - ./POS-ERP-FrutosSecos-Backend/p03/database/initdb:/docker-entrypoint-initdb.d:ro
       - db-data:/var/lib/postgresql/data
     restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   backend:
     image: isirm/p03-backend:latest
@@ -29,6 +34,11 @@ services:
     ports:
       - '8080:8080'
     restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   frontend:
     image: isirm/p03-frontend:latest
@@ -37,6 +47,11 @@ services:
     ports:
       - '3000:3000'
     restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
 
 volumes:
   db-data:
