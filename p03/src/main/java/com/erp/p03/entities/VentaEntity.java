@@ -43,7 +43,8 @@ public class VentaEntity {
     @Column(name = "cliente_id")
     private Integer clienteId; // opcional: referencia a cliente si existe
 
-    // ← AGREGAR ESTO
+    @Column(name = "descuento_global")
+    private Integer descuentoGlobal; // Descuento aplicado al total de la venta
     @Transient // No se mapea a la BD
     private ClienteFiadoEntity cliente; // Para incluir en JSON
 

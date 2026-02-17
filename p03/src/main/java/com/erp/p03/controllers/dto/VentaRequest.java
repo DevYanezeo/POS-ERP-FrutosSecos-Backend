@@ -11,6 +11,7 @@ public class VentaRequest {
     private Integer subtotal;
     private Integer iva;
     private Integer total;
+    private Integer descuentoGlobal;
     private List<DetalleVentaRequest> detalles;
 
     // Campos para soporte de fiado

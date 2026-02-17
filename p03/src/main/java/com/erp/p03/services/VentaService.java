@@ -212,6 +212,7 @@ public class VentaService {
         venta.setSubtotal(request.getSubtotal());
         venta.setIva(request.getIva());
         venta.setTotal(request.getTotal());
+        venta.setDescuentoGlobal(request.getDescuentoGlobal() != null ? request.getDescuentoGlobal() : 0);
 
         // Gestión de fiados: si request.fiado == true, marcar venta como fiado y
         // establecer saldoPendiente = total
@@ -1446,19 +1447,31 @@ public class VentaService {
         // Utilidad Bruta = Ingresos por Venta + Ingresos Adicionales - Costos de
         // Productos Vendidos - Gastos
         // Adquisición (Mercadería extra)
-        long utilidadBruta = totalIngresos + ingresosAdicionales - totalCostoProductos - gastosAdquisicion;
+
+        // Restar Descuentos Globales
+        Integer totalDescuentosGlobales = ventaRepository.sumDescuentoGlobalBetween(start, end);
+        if (totalDescuentosGlobales == null) {
+            totalDescuentosGlobales = 0;
+        }
+
+        // Ajustar TotalIngresos restando los descuentos globales
+        // Nota: totalIngresos viene de la suma de los items. Si hubo descuento global,
+        // el ingreso real es menor.
+        long totalIngresosReales = totalIngresos - totalDescuentosGlobales;
+
+        long utilidadBruta = totalIngresosReales + ingresosAdicionales - totalCostoProductos - gastosAdquisicion;
 
         // Utilidad Neta = Utilidad Bruta - Gastos Operacionales
         long utilidadNeta = utilidadBruta - gastosOperacionales;
 
         // Margen Neto %
-        long totalIngresosConAdicionales = totalIngresos + ingresosAdicionales;
+        long totalIngresosConAdicionales = totalIngresosReales + ingresosAdicionales;
         double margenPorcentaje = (totalIngresosConAdicionales > 0)
                 ? ((double) utilidadNeta / totalIngresosConAdicionales) * 100
                 : 0.0;
 
         com.erp.p03.controllers.dto.FinanceSummaryDTO summary = new com.erp.p03.controllers.dto.FinanceSummaryDTO();
-        summary.setTotalIngresos(totalIngresos);
+        summary.setTotalIngresos(totalIngresosReales); // Return real revenue
         summary.setIngresosAdicionales(ingresosAdicionales);
         summary.setTotalCostoProductos(totalCostoProductos);
         summary.setGastosAdquisicion(gastosAdquisicion);

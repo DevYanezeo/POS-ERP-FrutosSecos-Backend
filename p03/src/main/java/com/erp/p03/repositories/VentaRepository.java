@@ -38,4 +38,7 @@ public interface VentaRepository extends JpaRepository<VentaEntity, Integer> {
     // Ventas fiadas con saldo pendiente > 0
     List<VentaEntity> findByFiadoTrueAndSaldoPendienteGreaterThan(Integer amount);
 
+    // Suma de descuentos globales en un rango de fechas
+    @org.springframework.data.jpa.repository.Query("SELECT SUM(v.descuentoGlobal) FROM VentaEntity v WHERE v.fecha BETWEEN :desde AND :hasta")
+    Integer sumDescuentoGlobalBetween(LocalDateTime desde, LocalDateTime hasta);
 }
